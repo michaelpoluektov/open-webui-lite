@@ -2,7 +2,6 @@ import logging
 from contextvars import ContextVar
 
 from open_webui.env import SRC_LOG_LEVELS
-from peewee import *
 from peewee import InterfaceError as PeeWeeInterfaceError
 from peewee import PostgresqlDatabase
 from playhouse.db_url import connect, parse

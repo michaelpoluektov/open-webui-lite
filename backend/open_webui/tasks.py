@@ -22,7 +22,7 @@ def create_task(coroutine):
     task = asyncio.create_task(coroutine)  # Create the task
 
     # Add a done callback for cleanup
-    task.add_done_callback(lambda t: cleanup_task(task_id))
+    task.add_done_callback(lambda _: cleanup_task(task_id))
 
     tasks[task_id] = task
     return task_id, task

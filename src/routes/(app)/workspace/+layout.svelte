@@ -1,16 +1,6 @@
 <script lang="ts">
 	import { onMount, getContext } from 'svelte';
-	import {
-		WEBUI_NAME,
-		showSidebar,
-		functions,
-		user,
-		mobile,
-		models,
-		prompts,
-		knowledge,
-		tools
-	} from '$lib/stores';
+	import { WEBUI_NAME, showSidebar, user } from '$lib/stores';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 
@@ -23,11 +13,6 @@
 	onMount(async () => {
 		if ($user?.role !== 'admin') {
 			if ($page.url.pathname.includes('/models') && !$user?.permissions?.workspace?.models) {
-				goto('/');
-			} else if (
-				$page.url.pathname.includes('/knowledge') &&
-				!$user?.permissions?.workspace?.knowledge
-			) {
 				goto('/');
 			} else if (
 				$page.url.pathname.includes('/prompts') &&
@@ -85,19 +70,6 @@
 									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition"
 								href="/workspace/models">{$i18n.t('Models')}</a
 							>
-						{/if}
-
-						{#if $user?.role === 'admin' || $user?.permissions?.workspace?.knowledge}
-							<a
-								class="min-w-fit rounded-full p-1.5 {$page.url.pathname.includes(
-									'/workspace/knowledge'
-								)
-									? ''
-									: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition"
-								href="/workspace/knowledge"
-							>
-								{$i18n.t('Knowledge')}
-							</a>
 						{/if}
 
 						{#if $user?.role === 'admin' || $user?.permissions?.workspace?.prompts}

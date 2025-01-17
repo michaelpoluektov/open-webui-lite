@@ -1,18 +1,14 @@
-import time
 import logging
 import sys
 
-from aiocache import cached
-from typing import Any, Optional
+from typing import Any
 import random
 import json
 import inspect
 
 from fastapi import Request
-from starlette.responses import Response, StreamingResponse
+from starlette.responses import StreamingResponse
 
-
-from open_webui.models.users import UserModel
 
 from open_webui.socket.main import (
     get_event_call,
@@ -24,9 +20,6 @@ from open_webui.routers.openai import (
     generate_chat_completion as generate_openai_chat_completion,
 )
 
-from open_webui.routers.ollama import (
-    generate_chat_completion as generate_ollama_chat_completion,
-)
 
 from open_webui.routers.pipelines import (
     process_pipeline_inlet_filter,
@@ -34,16 +27,10 @@ from open_webui.routers.pipelines import (
 )
 
 from open_webui.models.functions import Functions
-from open_webui.models.models import Models
 
 
 from open_webui.utils.plugin import load_function_module_by_id
 from open_webui.utils.models import get_all_models, check_model_access
-from open_webui.utils.payload import convert_payload_openai_to_ollama
-from open_webui.utils.response import (
-    convert_response_ollama_to_openai,
-    convert_streaming_response_ollama_to_openai,
-)
 
 from open_webui.env import SRC_LOG_LEVELS, GLOBAL_LOG_LEVEL, BYPASS_MODEL_ACCESS_CONTROL
 
@@ -83,78 +70,23 @@ async def generate_chat_completion(
         except Exception as e:
             raise e
 
-    if model["owned_by"] == "arena":
-        model_ids = model.get("info", {}).get("meta", {}).get("model_ids")
-        filter_mode = model.get("info", {}).get("meta", {}).get("filter_mode")
-        if model_ids and filter_mode == "exclude":
-            model_ids = [
-                model["id"]
-                for model in list(request.app.state.MODELS.values())
-                if model.get("owned_by") != "arena" and model["id"] not in model_ids
-            ]
-
-        selected_model_id = None
-        if isinstance(model_ids, list) and model_ids:
-            selected_model_id = random.choice(model_ids)
-        else:
-            model_ids = [
-                model["id"]
-                for model in list(request.app.state.MODELS.values())
-                if model.get("owned_by") != "arena"
-            ]
-            selected_model_id = random.choice(model_ids)
-
-        form_data["model"] = selected_model_id
-
-        if form_data.get("stream") == True:
-
-            async def stream_wrapper(stream):
-                yield f"data: {json.dumps({'selected_model_id': selected_model_id})}\n\n"
-                async for chunk in stream:
-                    yield chunk
-
-            response = await generate_chat_completion(
-                request, form_data, user, bypass_filter=True
-            )
-            return StreamingResponse(
-                stream_wrapper(response.body_iterator),
-                media_type="text/event-stream",
-                background=response.background,
-            )
-        else:
-            return {
-                **(
-                    await generate_chat_completion(
-                        request, form_data, user, bypass_filter=True
-                    )
-                ),
-                "selected_model_id": selected_model_id,
-            }
+        return {
+            **(
+                await generate_chat_completion(
+                    request, form_data, user, bypass_filter=True
+                )
+            ),
+            "selected_model_id": selected_model_id,
+        }
 
     if model.get("pipe"):
         # Below does not require bypass_filter because this is the only route the uses this function and it is already bypassing the filter
         return await generate_function_chat_completion(
             request, form_data, user=user, models=models
         )
-    if model["owned_by"] == "ollama":
-        # Using /ollama/api/chat endpoint
-        form_data = convert_payload_openai_to_ollama(form_data)
-        response = await generate_ollama_chat_completion(
-            request=request, form_data=form_data, user=user, bypass_filter=bypass_filter
-        )
-        if form_data.get("stream"):
-            response.headers["content-type"] = "text/event-stream"
-            return StreamingResponse(
-                convert_streaming_response_ollama_to_openai(response),
-                headers=dict(response.headers),
-                background=response.background,
-            )
-        else:
-            return convert_response_ollama_to_openai(response)
-    else:
-        return await generate_openai_chat_completion(
-            request=request, form_data=form_data, user=user, bypass_filter=bypass_filter
-        )
+    return await generate_openai_chat_completion(
+        request=request, form_data=form_data, user=user, bypass_filter=bypass_filter
+    )
 
 
 chat_completion = generate_chat_completion
