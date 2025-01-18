@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { onMount, getContext, tick } from 'svelte';
-	import { models, tools, functions, knowledge as knowledgeCollections, user } from '$lib/stores';
+	import { models, tools, functions } from '$lib/stores';
 
 	import AdvancedParams from '$lib/components/chat/Settings/Advanced/AdvancedParams.svelte';
 	import Tags from '$lib/components/common/Tags.svelte';
-	import Knowledge from '$lib/components/workspace/Models/Knowledge.svelte';
 	import ToolsSelector from '$lib/components/workspace/Models/ToolsSelector.svelte';
 	import FiltersSelector from '$lib/components/workspace/Models/FiltersSelector.svelte';
 	import ActionsSelector from '$lib/components/workspace/Models/ActionsSelector.svelte';
@@ -12,9 +11,7 @@
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import { getTools } from '$lib/apis/tools';
 	import { getFunctions } from '$lib/apis/functions';
-	import { getKnowledgeBases } from '$lib/apis/knowledge';
 	import AccessControl from '../common/AccessControl.svelte';
-	import { stringify } from 'postcss';
 	import { toast } from 'svelte-sonner';
 
 	const i18n = getContext('i18n');
@@ -78,7 +75,6 @@
 		citations: true
 	};
 
-	let knowledge = [];
 	let toolIds = [];
 	let filterIds = [];
 	let actionIds = [];
@@ -115,12 +111,8 @@
 		info.access_control = accessControl;
 		info.meta.capabilities = capabilities;
 
-		if (knowledge.length > 0) {
-			info.meta.knowledge = knowledge;
-		} else {
-			if (info.meta.knowledge) {
-				delete info.meta.knowledge;
-			}
+		if (info.meta.knowledge) {
+			delete info.meta.knowledge;
 		}
 
 		if (toolIds.length > 0) {
@@ -161,9 +153,8 @@
 	};
 
 	onMount(async () => {
-		await tools.set(await getTools(localStorage.token));
-		await functions.set(await getFunctions(localStorage.token));
-		await knowledgeCollections.set(await getKnowledgeBases(localStorage.token));
+		tools.set(await getTools(localStorage.token));
+		functions.set(await getFunctions(localStorage.token));
 
 		// Scroll to top 'workspace-container' element
 		const workspaceContainer = document.getElementById('workspace-container');
@@ -202,24 +193,6 @@
 			toolIds = model?.meta?.toolIds ?? [];
 			filterIds = model?.meta?.filterIds ?? [];
 			actionIds = model?.meta?.actionIds ?? [];
-			knowledge = (model?.meta?.knowledge ?? []).map((item) => {
-				if (item?.collection_name) {
-					return {
-						id: item.collection_name,
-						name: item.name,
-						legacy: true
-					};
-				} else if (item?.collection_names) {
-					return {
-						name: item.name,
-						type: 'collection',
-						collection_names: item.collection_names,
-						legacy: true
-					};
-				} else {
-					return item;
-				}
-			});
 			capabilities = { ...capabilities, ...(model?.meta?.capabilities ?? {}) };
 
 			if ('access_control' in model) {
@@ -682,10 +655,6 @@
 					</div>
 
 					<hr class=" border-gray-50 dark:border-gray-850 my-1.5" />
-
-					<div class="my-2">
-						<Knowledge bind:selectedKnowledge={knowledge} collections={$knowledgeCollections} />
-					</div>
 
 					<div class="my-2">
 						<ToolsSelector bind:selectedToolIds={toolIds} tools={$tools} />

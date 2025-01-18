@@ -2,16 +2,15 @@
 	import { marked } from 'marked';
 
 	import { toast } from 'svelte-sonner';
-	import Sortable from 'sortablejs';
 
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
 
-	import { onMount, getContext, tick } from 'svelte';
+	import { onMount, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	const i18n = getContext('i18n');
 
-	import { WEBUI_NAME, config, mobile, models as _models, settings, user } from '$lib/stores';
+	import { WEBUI_NAME, config, models as _models, user } from '$lib/stores';
 	import {
 		createNewModel,
 		deleteModelById,
@@ -65,7 +64,7 @@
 			toast.success($i18n.t(`Deleted {{name}}`, { name: model.id }));
 		}
 
-		await _models.set(await getModels(localStorage.token));
+		_models.set(await getModels(localStorage.token));
 		models = await getWorkspaceModels(localStorage.token);
 	};
 
@@ -83,7 +82,7 @@
 
 		const url = 'https://openwebui.com';
 
-		const tab = await window.open(`${url}/models/create`, '_blank');
+		const tab = window.open(`${url}/models/create`, '_blank');
 
 		// Define the event handler function
 		const messageHandler = (event) => {
@@ -131,7 +130,7 @@
 			);
 		}
 
-		await _models.set(await getModels(localStorage.token));
+		_models.set(await getModels(localStorage.token));
 		models = await getWorkspaceModels(localStorage.token);
 	};
 
@@ -412,7 +411,7 @@
 								}
 							}
 
-							await _models.set(await getModels(localStorage.token));
+							_models.set(await getModels(localStorage.token));
 							models = await getWorkspaceModels(localStorage.token);
 						};
 

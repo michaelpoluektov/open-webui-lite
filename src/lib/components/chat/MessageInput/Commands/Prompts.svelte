@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { prompts, user } from '$lib/stores';
 	import {
-		findWordIndices,
 		getUserPosition,
 		getFormattedDate,
 		getFormattedTime,
@@ -13,8 +12,6 @@
 	import { toast } from 'svelte-sonner';
 
 	const i18n = getContext('i18n');
-
-	export let files;
 
 	export let prompt = '';
 	export let command = '';
@@ -58,16 +55,6 @@
 						imageUrl = URL.createObjectURL(blob);
 					}
 				}
-			}
-
-			if (imageUrl) {
-				files = [
-					...files,
-					{
-						type: 'image',
-						url: imageUrl
-					}
-				];
 			}
 
 			text = text.replaceAll('{{CLIPBOARD}}', clipboardText);

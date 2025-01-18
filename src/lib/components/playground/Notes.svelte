@@ -4,17 +4,11 @@
 
 	import RichTextInput from '../common/RichTextInput.svelte';
 	import Spinner from '../common/Spinner.svelte';
-	import Sparkles from '../icons/Sparkles.svelte';
-	import SparklesSolid from '../icons/SparklesSolid.svelte';
-	import Mic from '../icons/Mic.svelte';
-	import VoiceRecording from '../chat/MessageInput/VoiceRecording.svelte';
-	import Tooltip from '../common/Tooltip.svelte';
 	import { toast } from 'svelte-sonner';
 
 	let name = '';
 	let content = '';
 
-	let voiceInput = false;
 	let loading = false;
 </script>
 
@@ -46,76 +40,6 @@
 				bind:value={content}
 				placeholder={$i18n.t('Write something...')}
 			/>
-		</div>
-	</div>
-
-	<div class="absolute bottom-0 left-0 right-0 p-5 max-w-full flex justify-end">
-		<div class="flex gap-0.5 justify-end w-full">
-			{#if voiceInput}
-				<div class="flex-1 w-full">
-					<VoiceRecording
-						bind:recording={voiceInput}
-						className="p-1 w-full max-w-full"
-						on:cancel={() => {
-							voiceInput = false;
-						}}
-						on:confirm={(e) => {
-							const { text, filename } = e.detail;
-
-							// url is hostname + /cache/audio/transcription/ + filename
-							const url = `${window.location.origin}/cache/audio/transcription/${filename}`;
-
-							// Open in new tab
-
-							if (content.trim() !== '') {
-								content = `${content}\n\n${text}\n\nRecording: ${url}\n\n`;
-							} else {
-								content = `${content}${text}\n\nRecording: ${url}\n\n`;
-							}
-
-							voiceInput = false;
-						}}
-					/>
-				</div>
-			{:else}
-				<Tooltip content={$i18n.t('Voice Input')}>
-					<button
-						class="cursor-pointer p-2.5 flex rounded-full hover:bg-gray-100 dark:hover:bg-gray-850 transition shadow-xl"
-						type="button"
-						on:click={async () => {
-							try {
-								let stream = await navigator.mediaDevices
-									.getUserMedia({ audio: true })
-									.catch(function (err) {
-										toast.error(
-											$i18n.t(`Permission denied when accessing microphone: {{error}}`, {
-												error: err
-											})
-										);
-										return null;
-									});
-
-								if (stream) {
-									voiceInput = true;
-									const tracks = stream.getTracks();
-									tracks.forEach((track) => track.stop());
-								}
-								stream = null;
-							} catch {
-								toast.error($i18n.t('Permission denied when accessing microphone'));
-							}
-						}}
-					>
-						<Mic className="size-4" />
-					</button>
-				</Tooltip>
-			{/if}
-
-			<!-- <button
-				class="cursor-pointer p-2.5 flex rounded-full hover:bg-gray-100 dark:hover:bg-gray-850 transition shadow-xl"
-			>
-				<SparklesSolid className="size-4" />
-			</button> -->
 		</div>
 	</div>
 </div>

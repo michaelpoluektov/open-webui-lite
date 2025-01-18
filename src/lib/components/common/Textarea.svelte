@@ -32,6 +32,8 @@
 </script>
 
 <div
+	role="textbox"
+	tabindex="0"
 	contenteditable="true"
 	bind:this={textareaElement}
 	class="{className} whitespace-pre-wrap relative {value
@@ -64,6 +66,7 @@
 		display: -webkit-box;
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: 1;
+		line-clamp: 1;
 		pointer-events: none;
 		touch-action: none;
 	}

@@ -1,22 +1,18 @@
 <script>
-	import { createEventDispatcher, onMount } from 'svelte';
-	import { toast } from 'svelte-sonner';
+	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher();
 
-	import { knowledge, prompts } from '$lib/stores';
+	import { prompts } from '$lib/stores';
 
 	import { removeLastWordFromString } from '$lib/utils';
 	import { getPrompts } from '$lib/apis/prompts';
-	import { getKnowledgeBases } from '$lib/apis/knowledge';
 
 	import Prompts from './Commands/Prompts.svelte';
-	import Knowledge from './Commands/Knowledge.svelte';
 	import Models from './Commands/Models.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
 	export let prompt = '';
-	export let files = [];
 
 	let loading = false;
 	let commandElement = null;
@@ -44,9 +40,6 @@
 		await Promise.all([
 			(async () => {
 				prompts.set(await getPrompts(localStorage.token));
-			})(),
-			(async () => {
-				knowledge.set(await getKnowledgeBases(localStorage.token));
 			})()
 		]);
 		loading = false;
@@ -56,39 +49,7 @@
 {#if show}
 	{#if !loading}
 		{#if command?.charAt(0) === '/'}
-			<Prompts bind:this={commandElement} bind:prompt bind:files {command} />
-		{:else if (command?.charAt(0) === '#' && command.startsWith('#') && !command.includes('# ')) || ('\\#' === command.slice(0, 2) && command.startsWith('#') && !command.includes('# '))}
-			<Knowledge
-				bind:this={commandElement}
-				bind:prompt
-				command={command.includes('\\#') ? command.slice(2) : command}
-				on:youtube={(e) => {
-					console.log(e);
-					dispatch('upload', {
-						type: 'youtube',
-						data: e.detail
-					});
-				}}
-				on:url={(e) => {
-					console.log(e);
-					dispatch('upload', {
-						type: 'web',
-						data: e.detail
-					});
-				}}
-				on:select={(e) => {
-					console.log(e);
-					files = [
-						...files,
-						{
-							...e.detail,
-							status: 'processed'
-						}
-					];
-
-					dispatch('select');
-				}}
-			/>
+			<Prompts bind:this={commandElement} bind:prompt {command} />
 		{:else if command?.charAt(0) === '@'}
 			<Models
 				bind:this={commandElement}

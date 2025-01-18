@@ -10,7 +10,7 @@
 	import Collapsible from '$lib/components/common/Collapsible.svelte';
 
 	import { user } from '$lib/stores';
-	export let models = [];
+	export const models = [];
 	export let chatFiles = [];
 	export let params = {};
 

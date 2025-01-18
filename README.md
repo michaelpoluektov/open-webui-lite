@@ -1,4 +1,32 @@
-# Open WebUI 👋
+# My OpenWebUI fork (not affiliated with the original project)
+
+The main goals are stability, maintainability and ease of deployment.
+
+This version drops the following features:
+
+- Image generation
+- TTS/STT
+- Groups
+- Ollama support out of the box (only though OpenAI API)
+- Builtin evaluations (only as a custom Action)
+- Builtin RAG (no vector DB or embedding models)
+- Persistent knowledge
+
+#### TODO Alpha
+
+Add file uploads and reactions back in in a more lightweight format.
+
+#### TODO Beta
+
+Cleanup all mentions of the above features, full type annotations in the backend, fix all CI, easier theming, basic docs.
+
+#### TODO Stable
+
+Make OpenAI API a "built-in" Function, add Callbacks API.
+
+# Original README
+
+## Open WebUI 👋
 
 ![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/open-webui/open-webui?style=social)
@@ -57,7 +85,7 @@ For more information, be sure to check out our [Open WebUI Documentation](https:
 
 Want to learn more about Open WebUI's features? Check out our [Open WebUI documentation](https://docs.openwebui.com/features) for a comprehensive overview!
 
-## 🔗 Also Check Out Open WebUI Community!
+## 🔗 Also Check Out Open WebUI Community
 
 Don't forget to explore our sibling project, [Open WebUI Community](https://openwebui.com/), where you can discover, download, and explore customized Modelfiles. Open WebUI Community offers a wide range of exciting possibilities for enhancing your chat interactions with Open WebUI! 🚀
 

@@ -3,14 +3,11 @@
 	import { getContext, onMount } from 'svelte';
 	const i18n = getContext('i18n');
 
-	import { models } from '$lib/stores';
 	import { verifyOpenAIConnection } from '$lib/apis/openai';
-	import { verifyOllamaConnection } from '$lib/apis/ollama';
 
 	import Modal from '$lib/components/common/Modal.svelte';
 	import Plus from '$lib/components/icons/Plus.svelte';
 	import Minus from '$lib/components/icons/Minus.svelte';
-	import PencilSolid from '$lib/components/icons/PencilSolid.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Switch from '$lib/components/common/Switch.svelte';
@@ -20,7 +17,6 @@
 
 	export let show = false;
 	export let edit = false;
-	export let ollama = false;
 
 	export let connection = null;
 
@@ -35,16 +31,6 @@
 
 	let loading = false;
 
-	const verifyOllamaHandler = async () => {
-		const res = await verifyOllamaConnection(localStorage.token, url, key).catch((error) => {
-			toast.error(error);
-		});
-
-		if (res) {
-			toast.success($i18n.t('Server connection verified'));
-		}
-	};
-
 	const verifyOpenAIHandler = async () => {
 		const res = await verifyOpenAIConnection(localStorage.token, url, key).catch((error) => {
 			toast.error(error);
@@ -56,11 +42,7 @@
 	};
 
 	const verifyHandler = () => {
-		if (ollama) {
-			verifyOllamaHandler();
-		} else {
-			verifyOpenAIHandler();
-		}
+		verifyOpenAIHandler();
 	};
 
 	const addModelHandler = () => {
@@ -73,7 +55,7 @@
 	const submitHandler = async () => {
 		loading = true;
 
-		if (!ollama && (!url || !key)) {
+		if (!url || !key) {
 			loading = false;
 			toast.error('URL and Key are required');
 			return;
@@ -214,7 +196,6 @@
 										className="w-full text-sm bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 										bind:value={key}
 										placeholder={$i18n.t('API Key')}
-										required={!ollama}
 									/>
 								</div>
 							</div>
@@ -269,15 +250,9 @@
 								</div>
 							{:else}
 								<div class="text-gray-500 text-xs text-center py-2 px-10">
-									{#if ollama}
-										{$i18n.t('Leave empty to include all models from "{{URL}}/api/tags" endpoint', {
-											URL: url
-										})}
-									{:else}
-										{$i18n.t('Leave empty to include all models from "{{URL}}/models" endpoint', {
-											URL: url
-										})}
-									{/if}
+									{$i18n.t('Leave empty to include all models from "{{URL}}/models" endpoint', {
+										URL: url
+									})}
 								</div>
 							{/if}
 						</div>

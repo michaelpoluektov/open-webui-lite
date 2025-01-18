@@ -11,8 +11,7 @@
 	import { createEventDispatcher } from 'svelte';
 	const eventDispatch = createEventDispatcher();
 
-	import { EditorState, Plugin, PluginKey, TextSelection } from 'prosemirror-state';
-	import { Decoration, DecorationSet } from 'prosemirror-view';
+	import { TextSelection } from 'prosemirror-state';
 
 	import { Editor } from '@tiptap/core';
 
@@ -24,8 +23,6 @@
 	import Typography from '@tiptap/extension-typography';
 	import StarterKit from '@tiptap/starter-kit';
 	import { all, createLowlight } from 'lowlight';
-
-	import { PASTED_TEXT_CHARACTER_LIMIT } from '$lib/constants';
 
 	// create a lowlight instance with all languages loaded
 	const lowlight = createLowlight(all);
@@ -40,14 +37,9 @@
 	export let autocomplete = false;
 	export let messageInput = false;
 	export let shiftEnter = false;
-	export let largeTextAsFile = false;
 
 	let element;
 	let editor;
-
-	const options = {
-		throwOnError: false
-	};
 
 	// Function to find the next template in the document
 	function findNextTemplate(doc, from = 0) {
@@ -276,50 +268,6 @@
 							}
 						}
 						eventDispatch('keydown', { event });
-						return false;
-					},
-					paste: (view, event) => {
-						if (event.clipboardData) {
-							// Extract plain text from clipboard and paste it without formatting
-							const plainText = event.clipboardData.getData('text/plain');
-							if (plainText) {
-								if (largeTextAsFile) {
-									if (plainText.length > PASTED_TEXT_CHARACTER_LIMIT) {
-										// Dispatch paste event to parent component
-										eventDispatch('paste', { event });
-										event.preventDefault();
-										return true;
-									}
-								}
-								return false;
-							}
-
-							// Check if the pasted content contains image files
-							const hasImageFile = Array.from(event.clipboardData.files).some((file) =>
-								file.type.startsWith('image/')
-							);
-
-							// Check for image in dataTransfer items (for cases where files are not available)
-							const hasImageItem = Array.from(event.clipboardData.items).some((item) =>
-								item.type.startsWith('image/')
-							);
-							if (hasImageFile) {
-								// If there's an image, dispatch the event to the parent
-								eventDispatch('paste', { event });
-								event.preventDefault();
-								return true;
-							}
-
-							if (hasImageItem) {
-								// If there's an image item, dispatch the event to the parent
-								eventDispatch('paste', { event });
-								event.preventDefault();
-								return true;
-							}
-						}
-
-						// For all other cases (text, formatted text, etc.), let ProseMirror handle it
-						view.dispatch(view.state.tr.scrollIntoView()); // Move viewport to the cursor after pasting
 						return false;
 					}
 				}

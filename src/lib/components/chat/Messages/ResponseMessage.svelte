@@ -10,11 +10,8 @@
 	const dispatch = createEventDispatcher();
 
 	import { config, models, settings, user } from '$lib/stores';
-	import { synthesizeOpenAISpeech } from '$lib/apis/audio';
-	import { imageGenerations } from '$lib/apis/images';
 	import {
 		copyToClipboard as _copyToClipboard,
-		getMessageContentParts,
 		sanitizeResponseContent,
 		createMessagesList
 	} from '$lib/utils';
