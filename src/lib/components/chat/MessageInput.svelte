@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { toast } from 'svelte-sonner';
-
 	import { createEventDispatcher, getContext, onDestroy, onMount, tick } from 'svelte';
 	const dispatch = createEventDispatcher();
 
@@ -35,27 +33,20 @@
 	export let history;
 
 	export let prompt = '';
-	export let files = [];
 
 	export let selectedToolIds = [];
-	export let webSearchEnabled = false;
 
 	$: onChange({
 		prompt,
-		files,
-		selectedToolIds,
-		webSearchEnabled
+		selectedToolIds
 	});
 
 	let loaded = false;
-	let recording = false;
 
 	let chatInputElement;
 
-	let filesInputElement;
 	let commandsElement;
 
-	let inputFiles;
 	let dragged = false;
 
 	export let placeholder = '';
@@ -80,36 +71,6 @@
 		}
 	};
 
-	const onDragOver = (e) => {
-		e.preventDefault();
-
-		// Check if a file is being dragged.
-		if (e.dataTransfer?.types?.includes('Files')) {
-			dragged = true;
-		} else {
-			dragged = false;
-		}
-	};
-
-	const onDragLeave = () => {
-		dragged = false;
-	};
-
-	const onDrop = async (e) => {
-		e.preventDefault();
-		console.log(e);
-
-		if (e.dataTransfer?.files) {
-			const inputFiles = Array.from(e.dataTransfer?.files);
-			if (inputFiles && inputFiles.length > 0) {
-				console.log(inputFiles);
-				inputFilesHandler(inputFiles);
-			}
-		}
-
-		dragged = false;
-	};
-
 	onMount(async () => {
 		loaded = true;
 
@@ -121,25 +82,11 @@
 		window.addEventListener('keydown', handleKeyDown);
 
 		await tick();
-
-		const dropzoneElement = document.getElementById('chat-container');
-
-		dropzoneElement?.addEventListener('dragover', onDragOver);
-		dropzoneElement?.addEventListener('drop', onDrop);
-		dropzoneElement?.addEventListener('dragleave', onDragLeave);
 	});
 
 	onDestroy(() => {
 		console.log('destroy');
 		window.removeEventListener('keydown', handleKeyDown);
-
-		const dropzoneElement = document.getElementById('chat-container');
-
-		if (dropzoneElement) {
-			dropzoneElement?.removeEventListener('dragover', onDragOver);
-			dropzoneElement?.removeEventListener('drop', onDrop);
-			dropzoneElement?.removeEventListener('dragleave', onDragLeave);
-		}
 	});
 </script>
 
@@ -181,7 +128,7 @@
 				</div>
 
 				<div class="w-full relative">
-					{#if atSelectedModel !== undefined || selectedToolIds.length > 0 || webSearchEnabled}
+					{#if atSelectedModel !== undefined || selectedToolIds.length > 0}
 						<div
 							class="px-3 pb-0.5 pt-1.5 text-left w-full flex flex-col absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 z-10"
 						>
@@ -213,22 +160,6 @@
 												{/if}
 											{/each}
 										</div>
-									</div>
-								</div>
-							{/if}
-
-							{#if webSearchEnabled}
-								<div class="flex items-center justify-between w-full">
-									<div class="flex items-center gap-2.5 text-sm dark:text-gray-500">
-										<div class="pl-1">
-											<span class="relative flex size-2">
-												<span
-													class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
-												/>
-												<span class="relative inline-flex rounded-full size-2 bg-green-500" />
-											</span>
-										</div>
-										<div class=" translate-y-[0.5px]">{$i18n.t('Search the web')}</div>
 									</div>
 								</div>
 							{/if}
@@ -268,7 +199,6 @@
 					<Commands
 						bind:this={commandsElement}
 						bind:prompt
-						bind:files
 						on:upload={(e) => {
 							dispatch('upload', e.detail);
 						}}
@@ -294,23 +224,7 @@
 					: 'max-w-6xl'} px-2.5 mx-auto inset-x-0"
 			>
 				<div class="">
-					<input
-						bind:this={filesInputElement}
-						bind:files={inputFiles}
-						type="file"
-						hidden
-						multiple
-						on:change={async () => {
-							if (inputFiles && inputFiles.length > 0) {
-								const _inputFiles = Array.from(inputFiles);
-								inputFilesHandler(_inputFiles);
-							} else {
-								toast.error($i18n.t(`File not found.`));
-							}
-
-							filesInputElement.value = '';
-						}}
-					/>
+					<input type="file" hidden multiple />
 
 					<form
 						class="w-full flex gap-1.5"
@@ -485,34 +399,6 @@
 													console.log('Escape');
 													atSelectedModel = undefined;
 													selectedToolIds = [];
-													webSearchEnabled = false;
-												}
-											}}
-											on:paste={async (e) => {
-												e = e.detail.event;
-												console.log(e);
-
-												const clipboardData = e.clipboardData || window.clipboardData;
-
-												if (clipboardData && clipboardData.items) {
-													for (const item of clipboardData.items) {
-														if (item.type.indexOf('image') !== -1) {
-															const blob = item.getAsFile();
-															const reader = new FileReader();
-
-															reader.onload = function (e) {
-																files = [
-																	...files,
-																	{
-																		type: 'image',
-																		url: `${e.target.result}`
-																	}
-																];
-															};
-
-															reader.readAsDataURL(blob);
-														}
-													}
 												}
 											}}
 										/>
@@ -657,7 +543,6 @@
 												console.log('Escape');
 												atSelectedModel = undefined;
 												selectedToolIds = [];
-												webSearchEnabled = false;
 											}
 										}}
 										rows="1"
@@ -669,83 +554,10 @@
 											e.target.style.height = '';
 											e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
 										}}
-										on:paste={async (e) => {
-											const clipboardData = e.clipboardData || window.clipboardData;
-
-											if (clipboardData && clipboardData.items) {
-												for (const item of clipboardData.items) {
-													if (item.type.indexOf('image') !== -1) {
-														const blob = item.getAsFile();
-														const reader = new FileReader();
-
-														reader.onload = function (e) {
-															files = [
-																...files,
-																{
-																	type: 'image',
-																	url: `${e.target.result}`
-																}
-															];
-														};
-
-														reader.readAsDataURL(blob);
-													}
-												}
-											}
-										}}
 									/>
 								{/if}
 
 								<div class="self-end mb-1.5 flex space-x-1 mr-1">
-									{#if !history?.currentId || history.messages[history.currentId]?.done == true}
-										<Tooltip content={$i18n.t('Record voice')}>
-											<button
-												id="voice-input-button"
-												class=" text-gray-600 dark:text-gray-300 hover:text-gray-700 dark:hover:text-gray-200 transition rounded-full p-1.5 mr-0.5 self-center"
-												type="button"
-												on:click={async () => {
-													try {
-														let stream = await navigator.mediaDevices
-															.getUserMedia({ audio: true })
-															.catch(function (err) {
-																toast.error(
-																	$i18n.t(
-																		`Permission denied when accessing microphone: {{error}}`,
-																		{
-																			error: err
-																		}
-																	)
-																);
-																return null;
-															});
-
-														if (stream) {
-															recording = true;
-															const tracks = stream.getTracks();
-															tracks.forEach((track) => track.stop());
-														}
-														stream = null;
-													} catch {
-														toast.error($i18n.t('Permission denied when accessing microphone'));
-													}
-												}}
-												aria-label="Voice Input"
-											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													viewBox="0 0 20 20"
-													fill="currentColor"
-													class="w-5 h-5 translate-y-[0.5px]"
-												>
-													<path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-													<path
-														d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z"
-													/>
-												</svg>
-											</button>
-										</Tooltip>
-									{/if}
-
 									{#if !history.currentId || history.messages[history.currentId]?.done == true}
 										{#if prompt === ''}
 											<div class=" flex items-center"></div>
