@@ -7,8 +7,7 @@
 	});
 	turndownService.escape = (string) => string;
 
-	import { onMount, onDestroy } from 'svelte';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy, onMount } from 'svelte';
 	const eventDispatch = createEventDispatcher();
 
 	import { TextSelection } from 'prosemirror-state';
@@ -16,8 +15,8 @@
 	import { Editor } from '@tiptap/core';
 
 	import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-	import Placeholder from '@tiptap/extension-placeholder';
 	import Highlight from '@tiptap/extension-highlight';
+	import Placeholder from '@tiptap/extension-placeholder';
 	import Typography from '@tiptap/extension-typography';
 	import StarterKit from '@tiptap/starter-kit';
 	import { all, createLowlight } from 'lowlight';

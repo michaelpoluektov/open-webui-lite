@@ -101,8 +101,6 @@
 						</button>
 					{/each}
 				</div>
-
-				<hr class="border-black/5 dark:border-white/5 my-1" />
 			{/if}
 		</DropdownMenu.Content>
 	</div>

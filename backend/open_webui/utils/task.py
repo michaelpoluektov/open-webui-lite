@@ -183,8 +183,3 @@ def moa_response_generation_template(
 
     template = template.replace("{{responses}}", responses)
     return template
-
-
-def tools_function_calling_generation_template(template: str, tools_specs: str) -> str:
-    template = template.replace("{{TOOLS}}", tools_specs)
-    return template

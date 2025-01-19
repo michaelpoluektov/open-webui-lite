@@ -1,11 +1,10 @@
 <script lang="ts">
-	import hljs from 'highlight.js';
 	import mermaid from 'mermaid';
 
 	import { v4 as uuidv4 } from 'uuid';
 
-	import { getContext, onMount, createEventDispatcher } from 'svelte';
 	import { copyToClipboard } from '$lib/utils';
+	import { createEventDispatcher, getContext, onMount } from 'svelte';
 
 	import 'highlight.js/styles/github-dark.min.css';
 

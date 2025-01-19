@@ -1,14 +1,9 @@
 # Pull Request Checklist
 
-### Note to first-time contributors: Please open a discussion post in [Discussions](https://github.com/open-webui/open-webui/discussions) and describe your changes before submitting a pull request.
-
 **Before submitting, make sure you've checked the following:**
 
 - [ ] **Target branch:** Please verify that the pull request targets the `dev` branch.
 - [ ] **Description:** Provide a concise description of the changes made in this pull request.
-- [ ] **Changelog:** Ensure a changelog entry following the format of [Keep a Changelog](https://keepachangelog.com/) is added at the bottom of the PR description.
-- [ ] **Documentation:** Have you updated relevant documentation [Open WebUI Docs](https://github.com/open-webui/docs), or other documentation sources?
-- [ ] **Dependencies:** Are there any new dependencies? Have you updated the dependency versions in the documentation?
 - [ ] **Testing:** Have you written and run sufficient tests for validating the changes?
 - [ ] **Code review:** Have you performed a self-review of your code, addressing any coding standard issues and ensuring adherence to the project's coding standards?
 - [ ] **Prefix:** To cleary categorize this pull request, prefix the pull request title, using one of the following:
@@ -32,17 +27,9 @@
 
 - [Concisely describe the changes made in this pull request, including any relevant motivation and impact (e.g., fixing a bug, adding a feature, or improving performance)]
 
-### Added
-
-- [List any new features, functionalities, or additions]
-
 ### Changed
 
 - [List any changes, updates, refactorings, or optimizations]
-
-### Deprecated
-
-- [List any deprecated functionality or features that have been removed]
 
 ### Removed
 
@@ -59,14 +46,3 @@
 ### Breaking Changes
 
 - **BREAKING CHANGE**: [List any breaking changes affecting compatibility or functionality]
-
----
-
-### Additional Information
-
-- [Insert any additional context, notes, or explanations for the changes]
-  - [Reference any related issues, commits, or other relevant information]
-
-### Screenshots or Videos
-
-- [Attach any relevant screenshots or videos demonstrating the changes]

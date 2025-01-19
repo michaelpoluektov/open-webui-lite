@@ -29,7 +29,6 @@ Note: Please remove the notes above when submitting your post. Thank you for you
 ## Environment
 
 - **Open WebUI Version:** [e.g., v0.3.11]
-- **Ollama (if applicable):** [e.g., v0.2.0, v0.1.32-rc1]
 
 - **Operating System:** [e.g., Windows 10, macOS Big Sur, Ubuntu 20.04]
 - **Browser (if applicable):** [e.g., Chrome 100.0, Firefox 98.0]
@@ -42,11 +41,11 @@ Note: Please remove the notes above when submitting your post. Thank you for you
 - [ ] I have included the Docker container logs.
 - [ ] I have provided the exact steps to reproduce the bug in the "Steps to Reproduce" section below.
 
-## Expected Behavior:
+## Expected Behavior
 
 [Describe what you expected to happen.]
 
-## Actual Behavior:
+## Actual Behavior
 
 [Describe what actually happened.]
 
