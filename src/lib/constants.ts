@@ -13,22 +13,22 @@ export const WEBUI_VERSION = APP_VERSION;
 export const WEBUI_BUILD_HASH = APP_BUILD_HASH;
 
 export const SUPPORTED_FILE_TYPE = [
-  'application/epub+zip',
-  'application/pdf',
-  'text/plain',
-  'text/csv',
-  'text/xml',
-  'text/html',
-  'text/x-python',
-  'text/css',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/octet-stream',
-  'application/x-javascript',
-  'text/markdown',
-  'audio/mpeg',
-  'audio/wav',
-  'audio/ogg',
-  'audio/x-m4a'
+	'application/epub+zip',
+	'application/pdf',
+	'text/plain',
+	'text/csv',
+	'text/xml',
+	'text/html',
+	'text/x-python',
+	'text/css',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/octet-stream',
+	'application/x-javascript',
+	'text/markdown',
+	'audio/mpeg',
+	'audio/wav',
+	'audio/ogg',
+	'audio/x-m4a'
 ];
 
 // Source: https://kit.svelte.dev/docs/modules#$env-static-public

@@ -70,7 +70,9 @@ RUN chown -R $UID:$GID /app $HOME
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
-RUN pip3 install uv  \
+RUN pip3 install uv
+RUN pip3 install --no-cache-dir -r requirements.txt && \
+  python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])" && \
   chown -R $UID:$GID /app/backend/data/
 
 
