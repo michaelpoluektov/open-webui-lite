@@ -70,8 +70,8 @@ RUN chown -R $UID:$GID /app $HOME
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
 
-RUN pip3 install uv  \
-  chown -R $UID:$GID /app/backend/data/
+RUN pip3 install uv
+RUN chown -R $UID:$GID /app/backend/data/
 
 
 
