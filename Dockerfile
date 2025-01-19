@@ -75,10 +75,6 @@ RUN pip3 install uv  \
 
 
 
-# copy embedding weight from build
-# RUN mkdir -p /root/.cache/chroma/onnx_models/all-MiniLM-L6-v2
-# COPY --from=build /app/onnx /root/.cache/chroma/onnx_models/all-MiniLM-L6-v2/onnx
-
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
 COPY --chown=$UID:$GID --from=build /app/CHANGELOG.md /app/CHANGELOG.md

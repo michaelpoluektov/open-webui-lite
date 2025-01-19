@@ -6,9 +6,10 @@
 	import { getChannelThreadMessages, sendMessage } from '$lib/apis/channels';
 
 	import XMark from '$lib/components/icons/XMark.svelte';
-	import Messages from './Messages.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import MessageInput from './MessageInput.svelte';
+	import Messages from './Messages.svelte';
 
 	export let threadId = null;
 	export let channel = null;
@@ -117,6 +118,34 @@
 		}
 	};
 
+	const submitHandler = async ({ content, data }) => {
+		if (!content) {
+			return;
+		}
+
+		const res = await sendMessage(localStorage.token, channel.id, {
+			parent_id: threadId,
+			content: content,
+			data: data
+		}).catch((error) => {
+			toast.error(error);
+			return null;
+		});
+	};
+
+	const onChange = async () => {
+		$socket?.emit('channel-events', {
+			channel_id: channel.id,
+			message_id: threadId,
+			data: {
+				type: 'typing',
+				data: {
+					typing: true
+				}
+			}
+		});
+	};
+
 	onMount(() => {
 		$socket?.on('channel-events', channelEventHandler);
 	});
@@ -166,6 +195,10 @@
 					}
 				}}
 			/>
+
+			<div class=" pb-[1rem]">
+				<MessageInput id={threadId} {typingUsers} {onChange} onSubmit={submitHandler} />
+			</div>
 		</div>
 	</div>
 {/if}

@@ -9,6 +9,7 @@
 	import { getChannelById, getChannelMessages, sendMessage } from '$lib/apis/channels';
 
 	import Messages from './Messages.svelte';
+	import MessageInput from './MessageInput.svelte';
 	import Navbar from './Navbar.svelte';
 	import Drawer from '../common/Drawer.svelte';
 	import EllipsisVertical from '../icons/EllipsisVertical.svelte';
@@ -243,6 +244,17 @@
 						{/key}
 					</div>
 				{/if}
+			</div>
+
+			<div class=" pb-[1rem]">
+				<MessageInput
+					id="root"
+					{typingUsers}
+					{onChange}
+					onSubmit={submitHandler}
+					{scrollToBottom}
+					{scrollEnd}
+				/>
 			</div>
 		</Pane>
 

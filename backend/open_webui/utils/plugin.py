@@ -1,11 +1,10 @@
+import logging
 import os
 import re
 import subprocess
 import sys
-from importlib import util
-import types
 import tempfile
-import logging
+import types
 
 from open_webui.env import SRC_LOG_LEVELS
 from open_webui.models.functions import Functions
@@ -69,7 +68,6 @@ def replace_imports(content):
 
 
 def load_tools_module_by_id(toolkit_id, content=None):
-
     if content is None:
         tool = Tools.get_tool_by_id(toolkit_id)
         if not tool:
