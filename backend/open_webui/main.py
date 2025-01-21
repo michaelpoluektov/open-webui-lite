@@ -44,7 +44,6 @@ from open_webui.routers import (
     evaluations,
     tasks,
     auths,
-    channels,
     chats,
     folders,
     configs,
@@ -82,7 +81,6 @@ from open_webui.config import (
     ENABLE_API_KEY,
     ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
     API_KEY_ALLOWED_ENDPOINTS,
-    ENABLE_CHANNELS,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
     ENABLE_EVALUATION_ARENA_MODELS,
@@ -158,7 +156,6 @@ from open_webui.utils.models import (
 )
 from open_webui.utils.chat import (
     generate_chat_completion as chat_completion_handler,
-    chat_completed as chat_completed_handler,
     chat_action as chat_action_handler,
 )
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
@@ -275,7 +272,6 @@ app.state.config.BANNERS = WEBUI_BANNERS
 app.state.config.MODEL_ORDER_LIST = MODEL_ORDER_LIST
 
 
-app.state.config.ENABLE_CHANNELS = ENABLE_CHANNELS
 app.state.config.ENABLE_COMMUNITY_SHARING = ENABLE_COMMUNITY_SHARING
 app.state.config.ENABLE_MESSAGE_RATING = ENABLE_MESSAGE_RATING
 
@@ -419,7 +415,6 @@ app.include_router(auths.router, prefix="/api/v1/auths", tags=["auths"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 
 
-app.include_router(channels.router, prefix="/api/v1/channels", tags=["channels"])
 app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
 
 app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
@@ -441,20 +436,11 @@ app.include_router(utils.router, prefix="/api/v1/utils", tags=["utils"])
 
 @app.get("/api/models")
 async def get_models(request: Request, user=Depends(get_verified_user)):
+    t_start = time.time()
+
     def get_filtered_models(models, user):
         filtered_models = []
         for model in models:
-            if model.get("arena"):
-                if has_access(
-                    user.id,
-                    type="read",
-                    access_control=model.get("info", {})
-                    .get("meta", {})
-                    .get("access_control", {}),
-                ):
-                    filtered_models.append(model)
-                continue
-
             model_info = Models.get_model_by_id(model["id"])
             if model_info:
                 if user.id == model_info.user_id or has_access(
@@ -464,7 +450,10 @@ async def get_models(request: Request, user=Depends(get_verified_user)):
 
         return filtered_models
 
+    all_models_start = time.time()
     models = await get_all_models(request)
+    all_models_end = time.time()
+    log.info(f"get_all_models() took {all_models_end - all_models_start} seconds")
 
     # Filter out filter pipelines
     models = [
@@ -488,6 +477,8 @@ async def get_models(request: Request, user=Depends(get_verified_user)):
     log.debug(
         f"/api/models returned filtered models accessible to the user: {json.dumps([model['id'] for model in models])}"
     )
+    t_end = time.time()
+    log.info(f"get_models() took {t_end - t_start} seconds")
     return {"data": models}
 
 
@@ -554,19 +545,6 @@ async def chat_completion(
 # Alias for chat_completion (Legacy)
 generate_chat_completions = chat_completion
 generate_chat_completion = chat_completion
-
-
-@app.post("/api/chat/completed")
-async def chat_completed(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
-):
-    try:
-        return await chat_completed_handler(request, form_data, user)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 @app.post("/api/chat/actions/{action_id}")
@@ -646,7 +624,6 @@ async def get_app_config(request: Request):
             "enable_websocket": ENABLE_WEBSOCKET_SUPPORT,
             **(
                 {
-                    "enable_channels": app.state.config.ENABLE_CHANNELS,
                     "enable_community_sharing": app.state.config.ENABLE_COMMUNITY_SHARING,
                     "enable_message_rating": app.state.config.ENABLE_MESSAGE_RATING,
                     "enable_admin_export": ENABLE_ADMIN_EXPORT,

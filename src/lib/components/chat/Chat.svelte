@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { v4 as uuidv4 } from 'uuid';
+	import { Pane, PaneGroup } from 'paneforge';
 	import { toast } from 'svelte-sonner';
-	import mermaid from 'mermaid';
-	import { PaneGroup, Pane, PaneResizer } from 'paneforge';
+	import { v4 as uuidv4 } from 'uuid';
 
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
 	const i18n: Writable<i18nType> = getContext('i18n');
@@ -10,31 +9,31 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
-	import { get, type Unsubscriber, type Writable } from 'svelte/store';
-	import type { i18n as i18nType } from 'i18next';
 	import { WEBUI_BASE_URL } from '$lib/constants';
+	import type { i18n as i18nType } from 'i18next';
+	import { type Unsubscriber, type Writable } from 'svelte/store';
 
 	import {
+		banners,
 		chatId,
 		chats,
+		chatTitle,
 		config,
+		currentChatPage,
+		mobile,
 		type Model,
 		models,
 		settings,
-		showSidebar,
-		WEBUI_NAME,
-		banners,
-		user,
-		socket,
-		showControls,
-		showCallOverlay,
-		currentChatPage,
-		temporaryChatEnabled,
-		mobile,
-		showOverview,
-		chatTitle,
 		showArtifacts,
-		tools
+		showCallOverlay,
+		showControls,
+		showOverview,
+		showSidebar,
+		socket,
+		temporaryChatEnabled,
+		tools,
+		user,
+		WEBUI_NAME
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
@@ -43,19 +42,19 @@
 		promptTemplate
 	} from '$lib/utils';
 
+	import { chatAction, generateMoACompletion, stopTask } from '$lib/apis';
 	import { createNewChat, getChatById, getChatList, updateChatById } from '$lib/apis/chats';
 	import { generateOpenAIChatCompletion } from '$lib/apis/openai';
 	import { createOpenAITextStream } from '$lib/apis/streaming';
-	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
-	import { chatCompleted, chatAction, generateMoACompletion, stopTask } from '$lib/apis';
 	import { getTools } from '$lib/apis/tools';
+	import { getAndUpdateUserLocation, getUserSettings } from '$lib/apis/users';
 
-	import Banner from '../common/Banner.svelte';
 	import MessageInput from '$lib/components/chat/MessageInput.svelte';
 	import Messages from '$lib/components/chat/Messages.svelte';
 	import Navbar from '$lib/components/chat/Navbar.svelte';
-	import ChatControls from './ChatControls.svelte';
+	import Banner from '../common/Banner.svelte';
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
+	import ChatControls from './ChatControls.svelte';
 	import Placeholder from './Placeholder.svelte';
 
 	export let chatIdProp = '';
@@ -573,57 +572,6 @@
 		}
 	};
 
-	const chatCompletedHandler = async (chatId, modelId, responseMessageId, messages) => {
-		const res = await chatCompleted(localStorage.token, {
-			model: modelId,
-			messages: messages.map((m) => ({
-				id: m.id,
-				role: m.role,
-				content: m.content,
-				info: m.info ? m.info : undefined,
-				timestamp: m.timestamp,
-				...(m.sources ? { sources: m.sources } : {})
-			})),
-			chat_id: chatId,
-			session_id: $socket?.id,
-			id: responseMessageId
-		}).catch((error) => {
-			toast.error(error);
-			messages.at(-1).error = { content: error };
-
-			return null;
-		});
-
-		if (res !== null && res.messages) {
-			// Update chat history with the new messages
-			for (const message of res.messages) {
-				history.messages[message.id] = {
-					...history.messages[message.id],
-					...(history.messages[message.id].content !== message.content
-						? { originalContent: history.messages[message.id].content }
-						: {}),
-					...message
-				};
-			}
-		}
-
-		await tick();
-
-		if ($chatId == chatId) {
-			if (!$temporaryChatEnabled) {
-				chat = await updateChatById(localStorage.token, chatId, {
-					models: selectedModels,
-					messages: messages,
-					history: history,
-					params: params
-				});
-
-				currentChatPage.set(1);
-				await chats.set(await getChatList(localStorage.token, $currentChatPage));
-			}
-		}
-	};
-
 	const chatActionHandler = async (chatId, actionId, modelId, responseMessageId, event = null) => {
 		const messages = createMessagesList(responseMessageId);
 
@@ -938,7 +886,6 @@
 			);
 
 			history.messages[message.id] = message;
-			await chatCompletedHandler(chatId, message.model, message.id, createMessagesList(message.id));
 		}
 
 		console.log(data);

@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import sys
+import time
 from typing import AsyncGenerator, Generator, Iterator
 
 from fastapi import Request
@@ -34,9 +35,11 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 def get_function_module_by_id(request: Request, pipe_id: str):
     # Check if function is already loaded
     if pipe_id not in request.app.state.FUNCTIONS:
+        log.info(f"Loading function module for pipe_id: {pipe_id}")
         function_module, _, _ = load_function_module_by_id(pipe_id)
         request.app.state.FUNCTIONS[pipe_id] = function_module
     else:
+        log.info(f"Function module for pipe_id: {pipe_id} already loaded")
         function_module = request.app.state.FUNCTIONS[pipe_id]
 
     if hasattr(function_module, "valves") and hasattr(function_module, "Valves"):
@@ -50,7 +53,9 @@ async def get_function_models(request):
     pipe_models = []
 
     for pipe in pipes:
+        t = time.time()
         function_module = get_function_module_by_id(request, pipe.id)
+        log.info(f"get_function_models: {pipe.id} - {time.time()-t}")
 
         # Check if function is a manifold
         if hasattr(function_module, "pipes"):
@@ -238,48 +243,7 @@ async def generate_function_chat_completion(
     pipe = function_module.pipe
     params = get_function_params(function_module, form_data, user, extra_params)
 
-    if form_data.get("stream", False):
-
-        async def stream_content():
-            try:
-                res = await execute_pipe(pipe, params)
-
-                # Directly return if the response is a StreamingResponse
-                if isinstance(res, StreamingResponse):
-                    async for data in res.body_iterator:
-                        yield data
-                    return
-                if isinstance(res, dict):
-                    yield f"data: {json.dumps(res)}\n\n"
-                    return
-
-            except Exception as e:
-                log.error(f"Error: {e}")
-                yield f"data: {json.dumps({'error': {'detail':str(e)}})}\n\n"
-                return
-
-            if isinstance(res, str):
-                message = openai_chat_chunk_message_template(form_data["model"], res)
-                yield f"data: {json.dumps(message)}\n\n"
-
-            if isinstance(res, Iterator):
-                for line in res:
-                    yield process_line(form_data, line)
-
-            if isinstance(res, AsyncGenerator):
-                async for line in res:
-                    yield process_line(form_data, line)
-
-            if isinstance(res, str) or isinstance(res, Generator):
-                finish_message = openai_chat_chunk_message_template(
-                    form_data["model"], ""
-                )
-                finish_message["choices"][0]["finish_reason"] = "stop"
-                yield f"data: {json.dumps(finish_message)}\n\n"
-                yield "data: [DONE]"
-
-        return StreamingResponse(stream_content(), media_type="text/event-stream")
-    else:
+    if not form_data.get("stream", False):
         try:
             res = await execute_pipe(pipe, params)
 
@@ -294,3 +258,41 @@ async def generate_function_chat_completion(
 
         message = await get_message_content(res)
         return openai_chat_completion_message_template(form_data["model"], message)
+
+    async def stream_content():
+        try:
+            res = await execute_pipe(pipe, params)
+
+            # Directly return if the response is a StreamingResponse
+            if isinstance(res, StreamingResponse):
+                async for data in res.body_iterator:
+                    yield data
+                return
+            if isinstance(res, dict):
+                yield f"data: {json.dumps(res)}\n\n"
+                return
+
+        except Exception as e:
+            log.error(f"Error: {e}")
+            yield f"data: {json.dumps({'error': {'detail':str(e)}})}\n\n"
+            return
+
+        if isinstance(res, str):
+            message = openai_chat_chunk_message_template(form_data["model"], res)
+            yield f"data: {json.dumps(message)}\n\n"
+
+        if isinstance(res, Iterator):
+            for line in res:
+                yield process_line(form_data, line)
+
+        if isinstance(res, AsyncGenerator):
+            async for line in res:
+                yield process_line(form_data, line)
+
+        if isinstance(res, str) or isinstance(res, Generator):
+            finish_message = openai_chat_chunk_message_template(form_data["model"], "")
+            finish_message["choices"][0]["finish_reason"] = "stop"
+            yield f"data: {json.dumps(finish_message)}\n\n"
+            yield "data: [DONE]"
+
+    return StreamingResponse(stream_content(), media_type="text/event-stream")

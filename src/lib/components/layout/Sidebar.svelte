@@ -4,60 +4,44 @@
 
 	import { goto } from '$app/navigation';
 	import {
-		user,
-		chats,
-		settings,
-		showSettings,
 		chatId,
-		tags,
-		showSidebar,
+		chats,
+		currentChatPage,
 		mobile,
-		showArchivedChats,
 		pinnedChats,
 		scrollPaginationEnabled,
-		currentChatPage,
+		showArchivedChats,
+		showSidebar,
+		tags,
 		temporaryChatEnabled,
-		channels,
-		socket,
-		config
+		user
 	} from '$lib/stores';
-	import { onMount, getContext, tick, onDestroy } from 'svelte';
+	import { getContext, onDestroy, onMount } from 'svelte';
 
 	const i18n = getContext('i18n');
 
 	import {
-		deleteChatById,
-		getChatList,
 		getAllTags,
-		getChatListBySearchText,
-		createNewChat,
-		getPinnedChatList,
-		toggleChatPinnedStatusById,
-		getChatPinnedStatusById,
 		getChatById,
-		updateChatFolderIdById,
-		importChat
+		getChatList,
+		getChatListBySearchText,
+		getPinnedChatList,
+		importChat,
+		toggleChatPinnedStatusById,
+		updateChatFolderIdById
 	} from '$lib/apis/chats';
 	import { createNewFolder, getFolders, updateFolderParentIdById } from '$lib/apis/folders';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 
-	import ArchivedChatsModal from './Sidebar/ArchivedChatsModal.svelte';
-	import UserMenu from './Sidebar/UserMenu.svelte';
-	import ChatItem from './Sidebar/ChatItem.svelte';
-	import Spinner from '../common/Spinner.svelte';
-	import Loader from '../common/Loader.svelte';
-	import AddFilesPlaceholder from '../AddFilesPlaceholder.svelte';
-	import SearchInput from './Sidebar/SearchInput.svelte';
 	import Folder from '../common/Folder.svelte';
-	import Plus from '../icons/Plus.svelte';
-	import Tooltip from '../common/Tooltip.svelte';
-	import Folders from './Sidebar/Folders.svelte';
-	import { getChannels, createNewChannel } from '$lib/apis/channels';
-	import ChannelModal from './Sidebar/ChannelModal.svelte';
-	import ChannelItem from './Sidebar/ChannelItem.svelte';
+	import Loader from '../common/Loader.svelte';
+	import Spinner from '../common/Spinner.svelte';
 	import PencilSquare from '../icons/PencilSquare.svelte';
-
-	const BREAKPOINT = 768;
+	import ArchivedChatsModal from './Sidebar/ArchivedChatsModal.svelte';
+	import ChatItem from './Sidebar/ChatItem.svelte';
+	import Folders from './Sidebar/Folders.svelte';
+	import SearchInput from './Sidebar/SearchInput.svelte';
+	import UserMenu from './Sidebar/UserMenu.svelte';
 
 	let navElement;
 	let search = '';
@@ -67,8 +51,6 @@
 	let selectedChatId = null;
 	let showDropdown = false;
 	let showPinnedChat = true;
-
-	let showCreateChannel = false;
 
 	// Pagination variables
 	let chatListLoading = false;
@@ -152,10 +134,6 @@
 		}
 	};
 
-	const initChannels = async () => {
-		await channels.set(await getChannels(localStorage.token));
-	};
-
 	const initChatList = async () => {
 		// Reset pagination variables
 		tags.set(await getAllTags(localStorage.token));
@@ -166,9 +144,9 @@
 		allChatsLoaded = false;
 
 		if (search) {
-			await chats.set(await getChatListBySearchText(localStorage.token, search, $currentChatPage));
+			chats.set(await getChatListBySearchText(localStorage.token, search, $currentChatPage));
 		} else {
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
+			chats.set(await getChatList(localStorage.token, $currentChatPage));
 		}
 
 		// Enable pagination
@@ -212,7 +190,7 @@
 			searchDebounceTimeout = setTimeout(async () => {
 				allChatsLoaded = false;
 				currentChatPage.set(1);
-				await chats.set(await getChatListBySearchText(localStorage.token, search));
+				chats.set(await getChatListBySearchText(localStorage.token, search));
 
 				if ($chats.length === 0) {
 					tags.set(await getAllTags(localStorage.token));
@@ -359,7 +337,6 @@
 			localStorage.sidebar = value;
 		});
 
-		await initChannels();
 		await initChatList();
 
 		window.addEventListener('keydown', onKeyDown);
@@ -400,25 +377,6 @@
 	bind:show={$showArchivedChats}
 	on:change={async () => {
 		await initChatList();
-	}}
-/>
-
-<ChannelModal
-	bind:show={showCreateChannel}
-	onSubmit={async ({ name, access_control }) => {
-		const res = await createNewChannel(localStorage.token, {
-			name: name,
-			access_control: access_control
-		}).catch((error) => {
-			toast.error(error);
-			return null;
-		});
-
-		if (res) {
-			$socket.emit('join-channels', { auth: { token: $user.token } });
-			await initChannels();
-			showCreateChannel = false;
-		}
 	}}
 />
 
@@ -565,29 +523,6 @@
 				? 'opacity-20'
 				: ''}"
 		>
-			{#if $config?.features?.enable_channels && ($user.role === 'admin' || $channels.length > 0) && !search}
-				<Folder
-					className="px-2 mt-0.5"
-					name={$i18n.t('Channels')}
-					dragAndDrop={false}
-					onAdd={$user.role === 'admin'
-						? () => {
-								showCreateChannel = true;
-							}
-						: null}
-					onAddLabel={$i18n.t('Create Channel')}
-				>
-					{#each $channels as channel}
-						<ChannelItem
-							{channel}
-							onUpdate={async () => {
-								await initChannels();
-							}}
-						/>
-					{/each}
-				</Folder>
-			{/if}
-
 			<Folder
 				collapsible={!search}
 				className="px-2 mt-0.5"

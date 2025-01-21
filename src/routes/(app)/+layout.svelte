@@ -1,53 +1,36 @@
 <script lang="ts">
-	import { toast } from 'svelte-sonner';
-	import { onMount, tick, getContext } from 'svelte';
-	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
-	const { saveAs } = fileSaver;
-	import mermaid from 'mermaid';
+	import { deleteDB, openDB } from 'idb';
+	import { getContext, onMount, tick } from 'svelte';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { fade } from 'svelte/transition';
 
-	import { getFunctions } from '$lib/apis/functions';
-	import { getModels, getVersionUpdates } from '$lib/apis';
-	import { getAllTags } from '$lib/apis/chats';
-	import { getPrompts } from '$lib/apis/prompts';
-	import { getTools } from '$lib/apis/tools';
+	import { getModels } from '$lib/apis';
 	import { getBanners } from '$lib/apis/configs';
+	import { getTools } from '$lib/apis/tools';
 	import { getUserSettings } from '$lib/apis/users';
 
-	import { WEBUI_VERSION } from '$lib/constants';
-	import { compareVersion } from '$lib/utils';
-
 	import {
-		config,
-		user,
-		settings,
-		models,
-		prompts,
-		tools,
-		functions,
 		banners,
+		models,
+		settings,
 		showSettings,
-		showChangelog,
-		temporaryChatEnabled
+		temporaryChatEnabled,
+		tools,
+		user
 	} from '$lib/stores';
 
-	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
-	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
-	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
+	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 
+	const { saveAs } = fileSaver;
 	const i18n = getContext('i18n');
 
 	let loaded = false;
 	let DB = null;
 	let localDBChats = [];
-
-	let version;
 
 	onMount(async () => {
 		if ($user === undefined) {
@@ -71,13 +54,18 @@
 				// IndexedDB Not Found
 			}
 
-			const userSettings = await getUserSettings(localStorage.token).catch((error) => {
-				console.error(error);
-				return null;
-			});
+			const [userSettingsResult, modelsData, bannersData, toolsData] = await Promise.all([
+				getUserSettings(localStorage.token).catch((error) => {
+					console.error(error);
+					return null;
+				}),
+				getModels(localStorage.token),
+				getBanners(localStorage.token),
+				getTools(localStorage.token)
+			]);
 
-			if (userSettings) {
-				settings.set(userSettings.ui);
+			if (userSettingsResult) {
+				settings.set(userSettingsResult.ui);
 			} else {
 				let localStorageSettings = {} as Parameters<(typeof settings)['set']>[0];
 
@@ -90,9 +78,10 @@
 				settings.set(localStorageSettings);
 			}
 
-			models.set(await getModels(localStorage.token));
-			banners.set(await getBanners(localStorage.token));
-			tools.set(await getTools(localStorage.token));
+			// Set models, banners, and tools after all promises resolve
+			models.set(modelsData);
+			banners.set(bannersData);
+			tools.set(toolsData);
 
 			document.addEventListener('keydown', async function (event) {
 				const isCtrlPressed = event.ctrlKey || event.metaKey; // metaKey is for Cmd key on Mac
@@ -175,58 +164,18 @@
 				}
 			});
 
-			if ($user.role === 'admin' && ($settings?.showChangelog ?? true)) {
-				showChangelog.set($settings?.version !== $config.version);
-			}
-
 			if ($page.url.searchParams.get('temporary-chat') === 'true') {
 				temporaryChatEnabled.set(true);
 			}
 
-			// Check for version updates
-			if ($user.role === 'admin') {
-				// Check if the user has dismissed the update toast in the last 24 hours
-				if (localStorage.dismissedUpdateToast) {
-					const dismissedUpdateToast = new Date(Number(localStorage.dismissedUpdateToast));
-					const now = new Date();
-
-					if (now - dismissedUpdateToast > 24 * 60 * 60 * 1000) {
-						checkForVersionUpdates();
-					}
-				} else {
-					checkForVersionUpdates();
-				}
-			}
 			await tick();
 		}
 
 		loaded = true;
 	});
-
-	const checkForVersionUpdates = async () => {
-		version = await getVersionUpdates(localStorage.token).catch((error) => {
-			return {
-				current: WEBUI_VERSION,
-				latest: WEBUI_VERSION
-			};
-		});
-	};
 </script>
 
 <SettingsModal bind:show={$showSettings} />
-<ChangelogModal bind:show={$showChangelog} />
-
-{#if version && compareVersion(version.latest, version.current) && ($settings?.showUpdateToast ?? true)}
-	<div class=" absolute bottom-8 right-8 z-50" in:fade={{ duration: 100 }}>
-		<UpdateInfoToast
-			{version}
-			on:close={() => {
-				localStorage.setItem('dismissedUpdateToast', Date.now().toString());
-				version = null;
-			}}
-		/>
-	</div>
-{/if}
 
 <div class="app relative">
 	<div

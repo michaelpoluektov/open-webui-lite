@@ -79,6 +79,9 @@ dependencies = [
   "googleapis-common-protos==1.63.2",
 
   "ldap3==2.9.1",
+  "langgraph==0.2.63",
+  "langchain-openai~=0.3",
+  "langchain-openai~=0.3",
 ]
 readme = "README.md"
 requires-python = ">= 3.11, < 3.13.0a1"

@@ -32,10 +32,6 @@ class EndpointFilter(logging.Filter):
 # Filter out /endpoint
 logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
-####################################
-# Config helpers
-####################################
-
 
 # Function to run the alembic migrations
 def run_migrations():
@@ -56,6 +52,10 @@ def run_migrations():
 
 
 run_migrations()
+
+####################################
+# Config helpers
+####################################
 
 
 class Config(Base):
@@ -536,42 +536,6 @@ else:
 
 CUSTOM_NAME = os.environ.get("CUSTOM_NAME", "")
 
-if CUSTOM_NAME:
-    try:
-        r = requests.get(f"https://api.openwebui.com/api/v1/custom/{CUSTOM_NAME}")
-        data = r.json()
-        if r.ok:
-            if "logo" in data:
-                WEBUI_FAVICON_URL = url = (
-                    f"https://api.openwebui.com{data['logo']}"
-                    if data["logo"][0] == "/"
-                    else data["logo"]
-                )
-
-                r = requests.get(url, stream=True)
-                if r.status_code == 200:
-                    with open(f"{STATIC_DIR}/favicon.png", "wb") as f:
-                        r.raw.decode_content = True
-                        shutil.copyfileobj(r.raw, f)
-
-            if "splash" in data:
-                url = (
-                    f"https://api.openwebui.com{data['splash']}"
-                    if data["splash"][0] == "/"
-                    else data["splash"]
-                )
-
-                r = requests.get(url, stream=True)
-                if r.status_code == 200:
-                    with open(f"{STATIC_DIR}/splash.png", "wb") as f:
-                        r.raw.decode_content = True
-                        shutil.copyfileobj(r.raw, f)
-
-            WEBUI_NAME = data["name"]
-    except Exception as e:
-        log.exception(e)
-        pass
-
 
 ####################################
 # STORAGE PROVIDER
@@ -793,12 +757,6 @@ USER_PERMISSIONS = PersistentConfig(
     },
 )
 
-ENABLE_CHANNELS = PersistentConfig(
-    "ENABLE_CHANNELS",
-    "channels.enable",
-    os.environ.get("ENABLE_CHANNELS", "False").lower() == "true",
-)
-
 
 ENABLE_EVALUATION_ARENA_MODELS = PersistentConfig(
     "ENABLE_EVALUATION_ARENA_MODELS",
@@ -934,15 +892,15 @@ TITLE_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
     os.environ.get("TITLE_GENERATION_PROMPT_TEMPLATE", ""),
 )
 
-DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE = """Create a concise, 3-5 word title with an emoji as a title for the chat history, in the given language. Suitable Emojis for the summary can be used to enhance understanding but avoid quotation marks or special formatting. RESPOND ONLY WITH THE TITLE TEXT.
+DEFAULT_TITLE_GENERATION_PROMPT_TEMPLATE = """Create a concise, 3-5 word title as a title for the chat history, in the given language. Avoid quotation marks or special formatting. RESPOND ONLY WITH THE TITLE TEXT.
 
 Examples of titles:
-📉 Stock Market Trends
-🍪 Perfect Chocolate Chip Recipe
+
+Perfect Chocolate Chip Recipe
 Evolution of Music Streaming
 Remote Work Productivity Tips
 Artificial Intelligence in Healthcare
-🎮 Video Game Development Insights
+Video Game Development Insights
 
 <chat_history>
 {{MESSAGES:END:2}}

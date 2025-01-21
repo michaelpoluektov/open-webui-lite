@@ -6,41 +6,41 @@
 		stiffness: 0.05
 	});
 
-	import { onMount, tick, setContext } from 'svelte';
-	import {
-		config,
-		user,
-		settings,
-		theme,
-		WEBUI_NAME,
-		mobile,
-		socket,
-		activeUserIds,
-		USAGE_POOL,
-		chatId,
-		chats,
-		currentChatPage,
-		tags,
-		temporaryChatEnabled,
-		isLastActiveTab
-	} from '$lib/stores';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import {
+		USAGE_POOL,
+		WEBUI_NAME,
+		activeUserIds,
+		chatId,
+		chats,
+		config,
+		currentChatPage,
+		isLastActiveTab,
+		mobile,
+		settings,
+		socket,
+		tags,
+		temporaryChatEnabled,
+		theme,
+		user
+	} from '$lib/stores';
+	import { onMount, setContext, tick } from 'svelte';
 	import { Toaster, toast } from 'svelte-sonner';
 
 	import { getBackendConfig } from '$lib/apis';
 	import { getSessionUser } from '$lib/apis/auths';
 
-	import '../tailwind.css';
 	import '../app.css';
+	import '../tailwind.css';
 
 	import 'tippy.js/dist/tippy.css';
 
-	import { WEBUI_BASE_URL, WEBUI_HOSTNAME } from '$lib/constants';
-	import i18n, { initI18n, getLanguages } from '$lib/i18n';
-	import { bestMatchingLanguage } from '$lib/utils';
 	import { getAllTags, getChatList } from '$lib/apis/chats';
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
+	import { WEBUI_BASE_URL } from '$lib/constants';
+	import i18n, { getLanguages, initI18n } from '$lib/i18n';
+	import { bestMatchingLanguage } from '$lib/utils';
 
 	setContext('i18n', i18n);
 
@@ -61,7 +61,7 @@
 			auth: { token: localStorage.token }
 		});
 
-		await socket.set(_socket);
+		socket.set(_socket);
 
 		_socket.on('connect_error', (err) => {
 			console.log('connect_error', err);
@@ -98,8 +98,6 @@
 	};
 
 	const chatEventHandler = async (event) => {
-		const chat = $page.url.pathname.includes(`/c/${event.chat_id}`);
-
 		if (
 			(event.chat_id !== $chatId && !$temporaryChatEnabled) ||
 			document.visibilityState !== 'visible'
@@ -135,43 +133,9 @@
 				}
 			} else if (type === 'chat:title') {
 				currentChatPage.set(1);
-				await chats.set(await getChatList(localStorage.token, $currentChatPage));
+				chats.set(await getChatList(localStorage.token, $currentChatPage));
 			} else if (type === 'chat:tags') {
 				tags.set(await getAllTags(localStorage.token));
-			}
-		}
-	};
-
-	const channelEventHandler = async (event) => {
-		// check url path
-		const channel = $page.url.pathname.includes(`/channels/${event.channel_id}`);
-
-		if ((!channel || document.visibilityState !== 'visible') && event?.user?.id !== $user?.id) {
-			await tick();
-			const type = event?.data?.type ?? null;
-			const data = event?.data?.data ?? null;
-
-			if (type === 'message') {
-				if ($isLastActiveTab) {
-					if ($settings?.notificationEnabled ?? false) {
-						new Notification(`${data?.user?.name} (#${event?.channel?.name}) | Open WebUI`, {
-							body: data?.content,
-							icon: data?.user?.profile_image_url ?? `${WEBUI_BASE_URL}/static/favicon.png`
-						});
-					}
-				}
-
-				toast.custom(NotificationToast, {
-					componentProps: {
-						onClick: () => {
-							goto(`/channels/${event.channel_id}`);
-						},
-						content: data?.content,
-						title: event?.channel?.name
-					},
-					duration: 15000,
-					unstyled: true
-				});
 			}
 		}
 	};
@@ -235,8 +199,8 @@
 
 		if (backendConfig) {
 			// Save Backend Status to Store
-			await config.set(backendConfig);
-			await WEBUI_NAME.set(backendConfig.name);
+			config.set(backendConfig);
+			WEBUI_NAME.set(backendConfig.name);
 
 			if ($config) {
 				await setupSocket($config.features?.enable_websocket ?? true);
@@ -253,10 +217,9 @@
 						$socket.emit('user-join', { auth: { token: sessionUser.token } });
 
 						$socket?.on('chat-events', chatEventHandler);
-						$socket?.on('channel-events', channelEventHandler);
 
-						await user.set(sessionUser);
-						await config.set(await getBackendConfig());
+						user.set(sessionUser);
+						config.set(await getBackendConfig());
 					} else {
 						// Redirect Invalid Session User to /auth Page
 						localStorage.removeItem('token');
