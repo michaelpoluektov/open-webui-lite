@@ -117,7 +117,7 @@ wheels = [
 
 [[package]]
 name = "anthropic"
-version = "0.43.1"
+version = "0.44.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -128,9 +128,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/d8/238c2bc59e41a787e7b62460adfc7b2edd88f28b0a14e292801a72725369/anthropic-0.43.1.tar.gz", hash = "sha256:c7f13e4b7b515ac4a3111142310b214527c0fc561485e5bc9b582e49fe3adba2", size = 195298 }
+sdist = { url = "https://files.pythonhosted.org/packages/eb/34/ed394012684f7d6e36bb36c8b7c82b438f0ef189d2afd3d0090b85801211/anthropic-0.44.0.tar.gz", hash = "sha256:dc5c91c8b0463f97513d2e79350511ef295a56910bac4fbbe9491016c71f2ef0", size = 196065 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/2b/63b167d76401f759c8c4ff0266042e60aac6fd3cc0685b27437ceaaf95eb/anthropic-0.43.1-py3-none-any.whl", hash = "sha256:20759c25cd0f4072eb966b0180a41c061c156473bbb674da6a3f1e92e1ad78f8", size = 208170 },
+    { url = "https://files.pythonhosted.org/packages/d3/ad/c3c7d199eedc0b6d4621deed8dc1ed252ce399400cd76f1da098f1f50e56/anthropic-0.44.0-py3-none-any.whl", hash = "sha256:7087ccfc8ed7b164f971e094495cd3aeabac1e435fa393480cc146c87946c21c", size = 208634 },
 ]
 
 [[package]]
@@ -1701,7 +1701,7 @@ wheels = [
 
 [[package]]
 name = "open-webui-lite"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiocache" },
