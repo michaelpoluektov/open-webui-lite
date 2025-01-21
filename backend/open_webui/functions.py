@@ -58,44 +58,7 @@ async def get_function_models(request):
         log.info(f"get_function_models: {pipe.id} - {time.time()-t}")
 
         # Check if function is a manifold
-        if hasattr(function_module, "pipes"):
-            sub_pipes = []
-
-            # Check if pipes is a function or a list
-
-            try:
-                if callable(function_module.pipes):
-                    sub_pipes = function_module.pipes()
-                else:
-                    sub_pipes = function_module.pipes
-            except Exception as e:
-                log.exception(e)
-                sub_pipes = []
-
-            log.debug(
-                f"get_function_models: function '{pipe.id}' is a manifold of {sub_pipes}"
-            )
-
-            for p in sub_pipes:
-                sub_pipe_id = f'{pipe.id}.{p["id"]}'
-                sub_pipe_name = p["name"]
-
-                if hasattr(function_module, "name"):
-                    sub_pipe_name = f"{function_module.name}{sub_pipe_name}"
-
-                pipe_flag = {"type": pipe.type}
-
-                pipe_models.append(
-                    {
-                        "id": sub_pipe_id,
-                        "name": sub_pipe_name,
-                        "object": "model",
-                        "created": pipe.created_at,
-                        "owned_by": "openai",
-                        "pipe": pipe_flag,
-                    }
-                )
-        else:
+        if not hasattr(function_module, "pipes"):
             pipe_flag = {"type": "pipe"}
 
             log.debug(
@@ -106,6 +69,42 @@ async def get_function_models(request):
                 {
                     "id": pipe.id,
                     "name": pipe.name,
+                    "object": "model",
+                    "created": pipe.created_at,
+                    "owned_by": "openai",
+                    "pipe": pipe_flag,
+                }
+            )
+            continue
+
+        sub_pipes = []
+        # Check if pipes is a function or a list
+        try:
+            if callable(function_module.pipes):
+                sub_pipes = function_module.pipes()
+            else:
+                sub_pipes = function_module.pipes
+        except Exception as e:
+            log.exception(e)
+            sub_pipes = []
+
+        log.debug(
+            f"get_function_models: function '{pipe.id}' is a manifold of {sub_pipes}"
+        )
+
+        for p in sub_pipes:
+            sub_pipe_id = f'{pipe.id}.{p["id"]}'
+            sub_pipe_name = p["name"]
+
+            if hasattr(function_module, "name"):
+                sub_pipe_name = f"{function_module.name}{sub_pipe_name}"
+
+            pipe_flag = {"type": pipe.type}
+
+            pipe_models.append(
+                {
+                    "id": sub_pipe_id,
+                    "name": sub_pipe_name,
                     "object": "model",
                     "created": pipe.created_at,
                     "owned_by": "openai",

@@ -46,7 +46,7 @@ async def get_all_models(request):
     t_start = time.time()
     models = await get_all_base_models(request)
     t_end = time.time()
-    log.info(f"get_all_models() took {t_end - t_start} seconds")
+    log.info(f"get_all_base_models() took {t_end - t_start} seconds")
 
     # If there are no models, return an empty list
     if len(models) == 0:
@@ -64,59 +64,58 @@ async def get_all_models(request):
     for custom_model in custom_models:
         if custom_model.base_model_id is None:
             for model in models:
-                if (
-                    custom_model.id == model["id"]
-                    or custom_model.id == model["id"].split(":")[0]
-                ):
-                    if custom_model.is_active:
-                        model["name"] = custom_model.name
-                        model["info"] = custom_model.model_dump()
+                cmid = custom_model.id
+                if not (cmid == model["id"] or cmid == model["id"].split(":")[0]):
+                    continue
+                if not custom_model.is_active:
+                    models.remove(model)
+                    continue
+                model["name"] = custom_model.name
+                model["info"] = custom_model.model_dump()
 
-                        action_ids = []
-                        if "info" in model and "meta" in model["info"]:
-                            action_ids.extend(
-                                model["info"]["meta"].get("actionIds", [])
-                            )
+                action_ids = []
+                if "info" in model and "meta" in model["info"]:
+                    action_ids.extend(model["info"]["meta"].get("actionIds", []))
 
-                        model["action_ids"] = action_ids
-                    else:
-                        models.remove(model)
+                model["action_ids"] = action_ids
 
-        elif custom_model.is_active and (
-            custom_model.id not in [model["id"] for model in models]
-        ):
-            owned_by = "openai"
-            pipe = None
-            action_ids = []
+        if not custom_model.is_active:
+            continue
 
-            for model in models:
-                if (
-                    custom_model.base_model_id == model["id"]
-                    or custom_model.base_model_id == model["id"].split(":")[0]
-                ):
-                    owned_by = model["owned_by"]
-                    if "pipe" in model:
-                        pipe = model["pipe"]
-                    break
+        if custom_model.id not in [model["id"] for model in models]:
+            continue
 
-            if custom_model.meta:
-                meta = custom_model.meta.model_dump()
-                if "actionIds" in meta:
-                    action_ids.extend(meta["actionIds"])
+        owned_by = "openai"
+        pipe = None
+        action_ids = []
 
-            models.append(
-                {
-                    "id": f"{custom_model.id}",
-                    "name": custom_model.name,
-                    "object": "model",
-                    "created": custom_model.created_at,
-                    "owned_by": owned_by,
-                    "info": custom_model.model_dump(),
-                    "preset": True,
-                    **({"pipe": pipe} if pipe is not None else {}),
-                    "action_ids": action_ids,
-                }
-            )
+        for model in models:
+            bmid = custom_model.base_model_id
+            if not (bmid == model["id"] or bmid == model["id"].split(":")[0]):
+                continue
+            owned_by = model["owned_by"]
+            if "pipe" in model:
+                pipe = model["pipe"]
+            break
+
+        if custom_model.meta:
+            meta = custom_model.meta.model_dump()
+            if "actionIds" in meta:
+                action_ids.extend(meta["actionIds"])
+
+        models.append(
+            {
+                "id": f"{custom_model.id}",
+                "name": custom_model.name,
+                "object": "model",
+                "created": custom_model.created_at,
+                "owned_by": owned_by,
+                "info": custom_model.model_dump(),
+                "preset": True,
+                **({"pipe": pipe} if pipe is not None else {}),
+                "action_ids": action_ids,
+            }
+        )
 
     # Process action_ids to get the actions
     def get_action_items_from_module(function, module):
@@ -134,15 +133,14 @@ async def get_all_models(request):
                 }
                 for action in actions
             ]
-        else:
-            return [
-                {
-                    "id": function.id,
-                    "name": function.name,
-                    "description": function.meta.description,
-                    "icon_url": function.meta.manifest.get("icon_url", None),
-                }
-            ]
+        return [
+            {
+                "id": function.id,
+                "name": function.name,
+                "description": function.meta.description,
+                "icon_url": function.meta.manifest.get("icon_url", None),
+            }
+        ]
 
     def get_function_module_by_id(function_id):
         if function_id in request.app.state.FUNCTIONS:

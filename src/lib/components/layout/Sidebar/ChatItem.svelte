@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { createEventDispatcher, getContext, onDestroy, onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
-	import { onMount, getContext, createEventDispatcher, tick, onDestroy } from 'svelte';
 	const i18n = getContext('i18n');
 
 	const dispatch = createEventDispatcher();
@@ -10,34 +10,31 @@
 		archiveChatById,
 		cloneChatById,
 		deleteChatById,
-		getAllTags,
 		getChatById,
 		getChatList,
-		getChatListByTagName,
 		getPinnedChatList,
 		updateChatById
 	} from '$lib/apis/chats';
 	import {
-		chatId,
 		chatTitle as _chatTitle,
+		chatId,
 		chats,
+		currentChatPage,
 		mobile,
 		pinnedChats,
-		showSidebar,
-		currentChatPage,
-		tags
+		showSidebar
 	} from '$lib/stores';
 
-	import ChatMenu from './ChatMenu.svelte';
-	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import ShareChatModal from '$lib/components/chat/ShareChatModal.svelte';
-	import GarbageBin from '$lib/components/icons/GarbageBin.svelte';
+	import DeleteConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
+	import DragGhost from '$lib/components/common/DragGhost.svelte';
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import ArchiveBox from '$lib/components/icons/ArchiveBox.svelte';
-	import DragGhost from '$lib/components/common/DragGhost.svelte';
 	import Check from '$lib/components/icons/Check.svelte';
-	import XMark from '$lib/components/icons/XMark.svelte';
 	import Document from '$lib/components/icons/Document.svelte';
+	import GarbageBin from '$lib/components/icons/GarbageBin.svelte';
+	import XMark from '$lib/components/icons/XMark.svelte';
+	import ChatMenu from './ChatMenu.svelte';
 
 	export let className = '';
 
@@ -81,8 +78,8 @@
 			}
 
 			currentChatPage.set(1);
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
-			await pinnedChats.set(await getPinnedChatList(localStorage.token));
+			chats.set(await getChatList(localStorage.token, $currentChatPage));
+			pinnedChats.set(await getPinnedChatList(localStorage.token));
 		}
 	};
 
@@ -96,8 +93,8 @@
 			goto(`/c/${res.id}`);
 
 			currentChatPage.set(1);
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
-			await pinnedChats.set(await getPinnedChatList(localStorage.token));
+			chats.set(await getChatList(localStorage.token, $currentChatPage));
+			pinnedChats.set(await getPinnedChatList(localStorage.token));
 		}
 	};
 
@@ -108,11 +105,10 @@
 		});
 
 		if (res) {
-			tags.set(await getAllTags(localStorage.token));
 			if ($chatId === id) {
 				await goto('/');
 
-				await chatId.set('');
+				chatId.set('');
 				await tick();
 			}
 
@@ -375,9 +371,6 @@
 					}}
 					on:change={async () => {
 						dispatch('change');
-					}}
-					on:tag={(e) => {
-						dispatch('tag', e.detail);
 					}}
 				>
 					<button

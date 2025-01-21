@@ -1,14 +1,10 @@
-from datetime import datetime
-from io import BytesIO
-from pathlib import Path
-from typing import Dict, Any, List
-
-from markdown import markdown
-
 import site
-from fpdf import FPDF
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
 
-from open_webui.env import STATIC_DIR, FONTS_DIR
+from fpdf import FPDF
+from open_webui.env import FONTS_DIR
 from open_webui.models.chats import ChatTitleMessagesForm
 
 
@@ -28,14 +24,12 @@ class PDFGenerator:
         self.messages_html = None
         self.form_data = form_data
 
-        self.css = Path(STATIC_DIR / "assets" / "pdf-style.css").read_text()
-
     def format_timestamp(self, timestamp: float) -> str:
         """Convert a UNIX timestamp to a formatted date string."""
         try:
             date_time = datetime.fromtimestamp(timestamp)
             return date_time.strftime("%Y-%m-%d, %H:%M:%S")
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             # Log the error if necessary
             return ""
 

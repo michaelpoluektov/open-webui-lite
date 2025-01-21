@@ -28,13 +28,6 @@ def create_task(coroutine):
     return task_id, task
 
 
-def get_task(task_id: str):
-    """
-    Retrieve a task by its task ID.
-    """
-    return tasks.get(task_id)
-
-
 def list_tasks():
     """
     List all currently active task IDs.

@@ -3,7 +3,6 @@
 	import { models, tools, functions } from '$lib/stores';
 
 	import AdvancedParams from '$lib/components/chat/Settings/Advanced/AdvancedParams.svelte';
-	import Tags from '$lib/components/common/Tags.svelte';
 	import ToolsSelector from '$lib/components/workspace/Models/ToolsSelector.svelte';
 	import FiltersSelector from '$lib/components/workspace/Models/FiltersSelector.svelte';
 	import ActionsSelector from '$lib/components/workspace/Models/ActionsSelector.svelte';
@@ -25,7 +24,6 @@
 	export let preset = true;
 
 	let loading = false;
-	let success = false;
 
 	let filesInputElement;
 	let inputFiles;
@@ -475,26 +473,6 @@
 								bind:value={info.meta.description}
 							/>
 						{/if}
-					</div>
-
-					<div class="my-1">
-						<div class="">
-							<Tags
-								tags={info?.meta?.tags ?? []}
-								on:delete={(e) => {
-									const tagName = e.detail;
-									info.meta.tags = info.meta.tags.filter((tag) => tag.name !== tagName);
-								}}
-								on:add={(e) => {
-									const tagName = e.detail;
-									if (!(info?.meta?.tags ?? null)) {
-										info.meta.tags = [{ name: tagName }];
-									} else {
-										info.meta.tags = [...info.meta.tags, { name: tagName }];
-									}
-								}}
-							/>
-						</div>
 					</div>
 
 					<div class="my-2">

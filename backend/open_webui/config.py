@@ -769,16 +769,6 @@ EVALUATION_ARENA_MODELS = PersistentConfig(
     [],
 )
 
-DEFAULT_ARENA_MODEL = {
-    "id": "arena-model",
-    "name": "Arena Model",
-    "meta": {
-        "profile_image_url": "/favicon.png",
-        "description": "Submit your questions to anonymous AI chatbots and vote on the best response.",
-        "model_ids": None,
-    },
-}
-
 WEBHOOK_URL = PersistentConfig(
     "WEBHOOK_URL", "webhook_url", os.environ.get("WEBHOOK_URL", "")
 )

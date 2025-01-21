@@ -12,7 +12,6 @@
 		scrollPaginationEnabled,
 		showArchivedChats,
 		showSidebar,
-		tags,
 		temporaryChatEnabled,
 		user
 	} from '$lib/stores';
@@ -21,7 +20,6 @@
 	const i18n = getContext('i18n');
 
 	import {
-		getAllTags,
 		getChatById,
 		getChatList,
 		getChatListBySearchText,
@@ -136,7 +134,6 @@
 
 	const initChatList = async () => {
 		// Reset pagination variables
-		tags.set(await getAllTags(localStorage.token));
 		pinnedChats.set(await getPinnedChatList(localStorage.token));
 		initFolders();
 
@@ -191,10 +188,6 @@
 				allChatsLoaded = false;
 				currentChatPage.set(1);
 				chats.set(await getChatListBySearchText(localStorage.token, search));
-
-				if ($chats.length === 0) {
-					tags.set(await getAllTags(localStorage.token));
-				}
 			}, 1000);
 		}
 	};
@@ -228,15 +221,6 @@
 			};
 
 			reader.readAsText(file);
-		}
-	};
-
-	const tagEventHandler = async (type, tagName, chatId) => {
-		console.log(type, tagName, chatId);
-		if (type === 'delete') {
-			initChatList();
-		} else if (type === 'add') {
-			initChatList();
 		}
 	};
 
@@ -649,10 +633,6 @@
 										on:change={async () => {
 											initChatList();
 										}}
-										on:tag={(e) => {
-											const { type, name } = e.detail;
-											tagEventHandler(type, name, chat.id);
-										}}
 									/>
 								{/each}
 							</div>
@@ -723,10 +703,6 @@
 									}}
 									on:change={async () => {
 										initChatList();
-									}}
-									on:tag={(e) => {
-										const { type, name } = e.detail;
-										tagEventHandler(type, name, chat.id);
 									}}
 								/>
 							{/each}

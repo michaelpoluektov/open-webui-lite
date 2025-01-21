@@ -20,7 +20,6 @@
 		mobile,
 		settings,
 		socket,
-		tags,
 		temporaryChatEnabled,
 		theme,
 		user
@@ -36,7 +35,7 @@
 
 	import 'tippy.js/dist/tippy.css';
 
-	import { getAllTags, getChatList } from '$lib/apis/chats';
+	import { getChatList } from '$lib/apis/chats';
 	import NotificationToast from '$lib/components/NotificationToast.svelte';
 	import { WEBUI_BASE_URL } from '$lib/constants';
 	import i18n, { getLanguages, initI18n } from '$lib/i18n';
@@ -134,8 +133,6 @@
 			} else if (type === 'chat:title') {
 				currentChatPage.set(1);
 				chats.set(await getChatList(localStorage.token, $currentChatPage));
-			} else if (type === 'chat:tags') {
-				tags.set(await getAllTags(localStorage.token));
 			}
 		}
 	};
