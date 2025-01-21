@@ -6,26 +6,21 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
-	import { getModels, getVersionUpdates } from '$lib/apis';
+	import { getModels } from '$lib/apis';
 	import { getBanners } from '$lib/apis/configs';
 	import { getTools } from '$lib/apis/tools';
 	import { getUserSettings } from '$lib/apis/users';
 
-	import { WEBUI_VERSION } from '$lib/constants';
-
 	import {
 		banners,
-		config,
 		models,
 		settings,
-		showChangelog,
 		showSettings,
 		temporaryChatEnabled,
 		tools,
 		user
 	} from '$lib/stores';
 
-	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
@@ -36,8 +31,6 @@
 	let loaded = false;
 	let DB = null;
 	let localDBChats = [];
-
-	let version;
 
 	onMount(async () => {
 		if ($user === undefined) {
@@ -61,13 +54,18 @@
 				// IndexedDB Not Found
 			}
 
-			const userSettings = await getUserSettings(localStorage.token).catch((error) => {
-				console.error(error);
-				return null;
-			});
+			const [userSettingsResult, modelsData, bannersData, toolsData] = await Promise.all([
+				getUserSettings(localStorage.token).catch((error) => {
+					console.error(error);
+					return null;
+				}),
+				getModels(localStorage.token),
+				getBanners(localStorage.token),
+				getTools(localStorage.token)
+			]);
 
-			if (userSettings) {
-				settings.set(userSettings.ui);
+			if (userSettingsResult) {
+				settings.set(userSettingsResult.ui);
 			} else {
 				let localStorageSettings = {} as Parameters<(typeof settings)['set']>[0];
 
@@ -80,9 +78,10 @@
 				settings.set(localStorageSettings);
 			}
 
-			models.set(await getModels(localStorage.token));
-			banners.set(await getBanners(localStorage.token));
-			tools.set(await getTools(localStorage.token));
+			// Set models, banners, and tools after all promises resolve
+			models.set(modelsData);
+			banners.set(bannersData);
+			tools.set(toolsData);
 
 			document.addEventListener('keydown', async function (event) {
 				const isCtrlPressed = event.ctrlKey || event.metaKey; // metaKey is for Cmd key on Mac
@@ -165,46 +164,18 @@
 				}
 			});
 
-			if ($user.role === 'admin' && ($settings?.showChangelog ?? true)) {
-				showChangelog.set($settings?.version !== $config.version);
-			}
-
 			if ($page.url.searchParams.get('temporary-chat') === 'true') {
 				temporaryChatEnabled.set(true);
 			}
 
-			// Check for version updates
-			if ($user.role === 'admin') {
-				// Check if the user has dismissed the update toast in the last 24 hours
-				if (localStorage.dismissedUpdateToast) {
-					const dismissedUpdateToast = new Date(Number(localStorage.dismissedUpdateToast));
-					const now = new Date();
-
-					if (now - dismissedUpdateToast > 24 * 60 * 60 * 1000) {
-						checkForVersionUpdates();
-					}
-				} else {
-					checkForVersionUpdates();
-				}
-			}
 			await tick();
 		}
 
 		loaded = true;
 	});
-
-	const checkForVersionUpdates = async () => {
-		version = await getVersionUpdates(localStorage.token).catch((error) => {
-			return {
-				current: WEBUI_VERSION,
-				latest: WEBUI_VERSION
-			};
-		});
-	};
 </script>
 
 <SettingsModal bind:show={$showSettings} />
-<ChangelogModal bind:show={$showChangelog} />
 
 <div class="app relative">
 	<div
