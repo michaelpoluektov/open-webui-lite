@@ -436,20 +436,11 @@ app.include_router(utils.router, prefix="/api/v1/utils", tags=["utils"])
 
 @app.get("/api/models")
 async def get_models(request: Request, user=Depends(get_verified_user)):
+    t_start = time.time()
+
     def get_filtered_models(models, user):
         filtered_models = []
         for model in models:
-            if model.get("arena"):
-                if has_access(
-                    user.id,
-                    type="read",
-                    access_control=model.get("info", {})
-                    .get("meta", {})
-                    .get("access_control", {}),
-                ):
-                    filtered_models.append(model)
-                continue
-
             model_info = Models.get_model_by_id(model["id"])
             if model_info:
                 if user.id == model_info.user_id or has_access(
@@ -459,7 +450,10 @@ async def get_models(request: Request, user=Depends(get_verified_user)):
 
         return filtered_models
 
+    all_models_start = time.time()
     models = await get_all_models(request)
+    all_models_end = time.time()
+    log.info(f"get_all_models() took {all_models_end - all_models_start} seconds")
 
     # Filter out filter pipelines
     models = [
@@ -483,6 +477,8 @@ async def get_models(request: Request, user=Depends(get_verified_user)):
     log.debug(
         f"/api/models returned filtered models accessible to the user: {json.dumps([model['id'] for model in models])}"
     )
+    t_end = time.time()
+    log.info(f"get_models() took {t_end - t_start} seconds")
     return {"data": models}
 
 

@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import sys
+import time
 from typing import AsyncGenerator, Generator, Iterator
 
 from fastapi import Request
@@ -50,7 +51,9 @@ async def get_function_models(request):
     pipe_models = []
 
     for pipe in pipes:
+        t = time.time()
         function_module = get_function_module_by_id(request, pipe.id)
+        log.info(f"get_function_models: {pipe.id} - {time.time()-t}")
 
         # Check if function is a manifold
         if hasattr(function_module, "pipes"):

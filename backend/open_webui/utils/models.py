@@ -1,4 +1,5 @@
 import logging
+import time
 import sys
 
 from fastapi import Request
@@ -27,18 +28,25 @@ async def get_all_base_models(request: Request):
     function_models = []
     openai_models = []
 
+    t = time.time()
     if request.app.state.config.ENABLE_OPENAI_API:
         openai_models = await openai.get_all_models(request)
         openai_models = openai_models["data"]
+    log.info(f"get_all_base_models() took {time.time() - t} seconds")
 
+    t = time.time()
     function_models = await get_function_models(request)
+    log.info(f"get_all_function() took {time.time() - t} seconds")
     models = function_models + openai_models
 
     return models
 
 
 async def get_all_models(request):
+    t_start = time.time()
     models = await get_all_base_models(request)
+    t_end = time.time()
+    log.info(f"get_all_models() took {t_end - t_start} seconds")
 
     # If there are no models, return an empty list
     if len(models) == 0:
