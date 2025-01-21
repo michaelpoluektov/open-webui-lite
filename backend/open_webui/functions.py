@@ -35,9 +35,11 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 def get_function_module_by_id(request: Request, pipe_id: str):
     # Check if function is already loaded
     if pipe_id not in request.app.state.FUNCTIONS:
+        log.info(f"Loading function module for pipe_id: {pipe_id}")
         function_module, _, _ = load_function_module_by_id(pipe_id)
         request.app.state.FUNCTIONS[pipe_id] = function_module
     else:
+        log.info(f"Function module for pipe_id: {pipe_id} already loaded")
         function_module = request.app.state.FUNCTIONS[pipe_id]
 
     if hasattr(function_module, "valves") and hasattr(function_module, "Valves"):
