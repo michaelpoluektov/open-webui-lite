@@ -140,40 +140,6 @@
 		}
 	};
 
-	const channelEventHandler = async (event) => {
-		// check url path
-		const channel = $page.url.pathname.includes(`/channels/${event.channel_id}`);
-
-		if ((!channel || document.visibilityState !== 'visible') && event?.user?.id !== $user?.id) {
-			await tick();
-			const type = event?.data?.type ?? null;
-			const data = event?.data?.data ?? null;
-
-			if (type === 'message') {
-				if ($isLastActiveTab) {
-					if ($settings?.notificationEnabled ?? false) {
-						new Notification(`${data?.user?.name} (#${event?.channel?.name}) | Open WebUI`, {
-							body: data?.content,
-							icon: data?.user?.profile_image_url ?? `${WEBUI_BASE_URL}/static/favicon.png`
-						});
-					}
-				}
-
-				toast.custom(NotificationToast, {
-					componentProps: {
-						onClick: () => {
-							goto(`/channels/${event.channel_id}`);
-						},
-						content: data?.content,
-						title: event?.channel?.name
-					},
-					duration: 15000,
-					unstyled: true
-				});
-			}
-		}
-	};
-
 	onMount(async () => {
 		// Listen for messages on the BroadcastChannel
 		bc.onmessage = (event) => {
@@ -251,7 +217,6 @@
 						$socket.emit('user-join', { auth: { token: sessionUser.token } });
 
 						$socket?.on('chat-events', chatEventHandler);
-						$socket?.on('channel-events', channelEventHandler);
 
 						user.set(sessionUser);
 						config.set(await getBackendConfig());

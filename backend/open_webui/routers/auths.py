@@ -1,58 +1,55 @@
-import re
-import uuid
-import time
 import datetime
 import logging
+import re
+import time
+import uuid
+from ssl import CERT_REQUIRED, PROTOCOL_TLS
+from typing import Optional
+
 from aiohttp import ClientSession
-
-from open_webui.models.auths import (
-    AddUserForm,
-    ApiKey,
-    Auths,
-    Token,
-    LdapForm,
-    SigninForm,
-    SigninResponse,
-    SignupForm,
-    UpdatePasswordForm,
-    UpdateProfileForm,
-    UserResponse,
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse, Response
+from ldap3 import ALL, Connection, Server, Tls
+from ldap3.utils.conv import escape_filter_chars
+from open_webui.config import (
+    ENABLE_OAUTH_SIGNUP,
+    OPENID_PROVIDER_URL,
 )
-from open_webui.models.users import Users
-
 from open_webui.constants import ERROR_MESSAGES, WEBHOOK_MESSAGES
 from open_webui.env import (
+    SRC_LOG_LEVELS,
     WEBUI_AUTH,
     WEBUI_AUTH_TRUSTED_EMAIL_HEADER,
     WEBUI_AUTH_TRUSTED_NAME_HEADER,
     WEBUI_SESSION_COOKIE_SAME_SITE,
     WEBUI_SESSION_COOKIE_SECURE,
-    SRC_LOG_LEVELS,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import RedirectResponse, Response
-from open_webui.config import (
-    OPENID_PROVIDER_URL,
-    ENABLE_OAUTH_SIGNUP,
+from open_webui.models.auths import (
+    AddUserForm,
+    ApiKey,
+    Auths,
+    LdapForm,
+    SigninForm,
+    SigninResponse,
+    SignupForm,
+    Token,
+    UpdatePasswordForm,
+    UpdateProfileForm,
+    UserResponse,
 )
-from pydantic import BaseModel
-from open_webui.utils.misc import parse_duration, validate_email_format
+from open_webui.models.users import Users
+from open_webui.utils.access_control import get_permissions
 from open_webui.utils.auth import (
     create_api_key,
     create_token,
     get_admin_user,
-    get_verified_user,
     get_current_user,
     get_password_hash,
+    get_verified_user,
 )
+from open_webui.utils.misc import parse_duration, validate_email_format
 from open_webui.utils.webhook import post_webhook
-from open_webui.utils.access_control import get_permissions
-
-from typing import Optional, List
-
-from ssl import CERT_REQUIRED, PROTOCOL_TLS
-from ldap3 import Server, Connection, ALL, Tls
-from ldap3.utils.conv import escape_filter_chars
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -348,7 +345,6 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
         user = Auths.authenticate_user(form_data.email.lower(), form_data.password)
 
     if user:
-
         expires_delta = parse_duration(request.app.state.config.JWT_EXPIRES_IN)
         expires_at = None
         if expires_delta:
@@ -618,7 +614,6 @@ async def get_admin_config(request: Request, user=Depends(get_admin_user)):
         "ENABLE_API_KEY": request.app.state.config.ENABLE_API_KEY,
         "ENABLE_API_KEY_ENDPOINT_RESTRICTIONS": request.app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
         "API_KEY_ALLOWED_ENDPOINTS": request.app.state.config.API_KEY_ALLOWED_ENDPOINTS,
-        "ENABLE_CHANNELS": request.app.state.config.ENABLE_CHANNELS,
         "DEFAULT_USER_ROLE": request.app.state.config.DEFAULT_USER_ROLE,
         "JWT_EXPIRES_IN": request.app.state.config.JWT_EXPIRES_IN,
         "ENABLE_COMMUNITY_SHARING": request.app.state.config.ENABLE_COMMUNITY_SHARING,
@@ -633,7 +628,6 @@ class AdminConfig(BaseModel):
     ENABLE_API_KEY: bool
     ENABLE_API_KEY_ENDPOINT_RESTRICTIONS: bool
     API_KEY_ALLOWED_ENDPOINTS: str
-    ENABLE_CHANNELS: bool
     DEFAULT_USER_ROLE: str
     JWT_EXPIRES_IN: str
     ENABLE_COMMUNITY_SHARING: bool
@@ -656,8 +650,6 @@ async def update_admin_config(
         form_data.API_KEY_ALLOWED_ENDPOINTS
     )
 
-    request.app.state.config.ENABLE_CHANNELS = form_data.ENABLE_CHANNELS
-
     if form_data.DEFAULT_USER_ROLE in ["pending", "user", "admin"]:
         request.app.state.config.DEFAULT_USER_ROLE = form_data.DEFAULT_USER_ROLE
 
@@ -679,7 +671,6 @@ async def update_admin_config(
         "ENABLE_API_KEY": request.app.state.config.ENABLE_API_KEY,
         "ENABLE_API_KEY_ENDPOINT_RESTRICTIONS": request.app.state.config.ENABLE_API_KEY_ENDPOINT_RESTRICTIONS,
         "API_KEY_ALLOWED_ENDPOINTS": request.app.state.config.API_KEY_ALLOWED_ENDPOINTS,
-        "ENABLE_CHANNELS": request.app.state.config.ENABLE_CHANNELS,
         "DEFAULT_USER_ROLE": request.app.state.config.DEFAULT_USER_ROLE,
         "JWT_EXPIRES_IN": request.app.state.config.JWT_EXPIRES_IN,
         "ENABLE_COMMUNITY_SHARING": request.app.state.config.ENABLE_COMMUNITY_SHARING,
