@@ -1,46 +1,36 @@
 <script lang="ts">
-	import { toast } from 'svelte-sonner';
-	import { onMount, tick, getContext } from 'svelte';
-	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
-	const { saveAs } = fileSaver;
-	import mermaid from 'mermaid';
+	import { deleteDB, openDB } from 'idb';
+	import { getContext, onMount, tick } from 'svelte';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { fade } from 'svelte/transition';
 
-	import { getFunctions } from '$lib/apis/functions';
 	import { getModels, getVersionUpdates } from '$lib/apis';
-	import { getAllTags } from '$lib/apis/chats';
-	import { getPrompts } from '$lib/apis/prompts';
-	import { getTools } from '$lib/apis/tools';
 	import { getBanners } from '$lib/apis/configs';
+	import { getTools } from '$lib/apis/tools';
 	import { getUserSettings } from '$lib/apis/users';
 
 	import { WEBUI_VERSION } from '$lib/constants';
-	import { compareVersion } from '$lib/utils';
 
 	import {
-		config,
-		user,
-		settings,
-		models,
-		prompts,
-		tools,
-		functions,
 		banners,
-		showSettings,
+		config,
+		models,
+		settings,
 		showChangelog,
-		temporaryChatEnabled
+		showSettings,
+		temporaryChatEnabled,
+		tools,
+		user
 	} from '$lib/stores';
 
-	import Sidebar from '$lib/components/layout/Sidebar.svelte';
-	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
+	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
-	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
+	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 
+	const { saveAs } = fileSaver;
 	const i18n = getContext('i18n');
 
 	let loaded = false;
@@ -215,18 +205,6 @@
 
 <SettingsModal bind:show={$showSettings} />
 <ChangelogModal bind:show={$showChangelog} />
-
-{#if version && compareVersion(version.latest, version.current) && ($settings?.showUpdateToast ?? true)}
-	<div class=" absolute bottom-8 right-8 z-50" in:fade={{ duration: 100 }}>
-		<UpdateInfoToast
-			{version}
-			on:close={() => {
-				localStorage.setItem('dismissedUpdateToast', Date.now().toString());
-				version = null;
-			}}
-		/>
-	</div>
-{/if}
 
 <div class="app relative">
 	<div
