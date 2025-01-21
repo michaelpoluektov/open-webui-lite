@@ -2,12 +2,9 @@ import logging
 import sys
 
 from typing import Any
-import random
-import json
 import inspect
 
 from fastapi import Request
-from starlette.responses import StreamingResponse
 
 
 from open_webui.socket.main import (
@@ -20,11 +17,6 @@ from open_webui.routers.openai import (
     generate_chat_completion as generate_openai_chat_completion,
 )
 
-
-from open_webui.routers.pipelines import (
-    process_pipeline_inlet_filter,
-    process_pipeline_outlet_filter,
-)
 
 from open_webui.models.functions import Functions
 
@@ -55,12 +47,6 @@ async def generate_chat_completion(
     if model_id not in models:
         raise Exception("Model not found")
 
-    # Process the form_data through the pipeline
-    try:
-        form_data = process_pipeline_inlet_filter(request, form_data, user, models)
-    except Exception as e:
-        raise e
-
     model = models[model_id]
 
     # Check if user has access to the model
@@ -69,15 +55,6 @@ async def generate_chat_completion(
             check_model_access(user, model)
         except Exception as e:
             raise e
-
-        return {
-            **(
-                await generate_chat_completion(
-                    request, form_data, user, bypass_filter=True
-                )
-            ),
-            "selected_model_id": selected_model_id,
-        }
 
     if model.get("pipe"):
         # Below does not require bypass_filter because this is the only route the uses this function and it is already bypassing the filter
@@ -90,135 +67,6 @@ async def generate_chat_completion(
 
 
 chat_completion = generate_chat_completion
-
-
-async def chat_completed(request: Request, form_data: dict, user: Any):
-    if not request.app.state.MODELS:
-        await get_all_models(request)
-    models = request.app.state.MODELS
-
-    data = form_data
-    model_id = data["model"]
-    if model_id not in models:
-        raise Exception("Model not found")
-
-    model = models[model_id]
-
-    try:
-        data = process_pipeline_outlet_filter(request, data, user, models)
-    except Exception as e:
-        return Exception(f"Error: {e}")
-
-    __event_emitter__ = get_event_emitter(
-        {
-            "chat_id": data["chat_id"],
-            "message_id": data["id"],
-            "session_id": data["session_id"],
-            "user_id": user.id,
-        }
-    )
-
-    __event_call__ = get_event_call(
-        {
-            "chat_id": data["chat_id"],
-            "message_id": data["id"],
-            "session_id": data["session_id"],
-            "user_id": user.id,
-        }
-    )
-
-    def get_priority(function_id):
-        function = Functions.get_function_by_id(function_id)
-        if function is not None and hasattr(function, "valves"):
-            # TODO: Fix FunctionModel to include vavles
-            return (function.valves if function.valves else {}).get("priority", 0)
-        return 0
-
-    filter_ids = [function.id for function in Functions.get_global_filter_functions()]
-    if "info" in model and "meta" in model["info"]:
-        filter_ids.extend(model["info"]["meta"].get("filterIds", []))
-        filter_ids = list(set(filter_ids))
-
-    enabled_filter_ids = [
-        function.id
-        for function in Functions.get_functions_by_type("filter", active_only=True)
-    ]
-    filter_ids = [
-        filter_id for filter_id in filter_ids if filter_id in enabled_filter_ids
-    ]
-
-    # Sort filter_ids by priority, using the get_priority function
-    filter_ids.sort(key=get_priority)
-
-    for filter_id in filter_ids:
-        filter = Functions.get_function_by_id(filter_id)
-        if not filter:
-            continue
-
-        if filter_id in request.app.state.FUNCTIONS:
-            function_module = request.app.state.FUNCTIONS[filter_id]
-        else:
-            function_module, _, _ = load_function_module_by_id(filter_id)
-            request.app.state.FUNCTIONS[filter_id] = function_module
-
-        if hasattr(function_module, "valves") and hasattr(function_module, "Valves"):
-            valves = Functions.get_function_valves_by_id(filter_id)
-            function_module.valves = function_module.Valves(
-                **(valves if valves else {})
-            )
-
-        if not hasattr(function_module, "outlet"):
-            continue
-        try:
-            outlet = function_module.outlet
-
-            # Get the signature of the function
-            sig = inspect.signature(outlet)
-            params = {"body": data}
-
-            # Extra parameters to be passed to the function
-            extra_params = {
-                "__model__": model,
-                "__id__": filter_id,
-                "__event_emitter__": __event_emitter__,
-                "__event_call__": __event_call__,
-                "__request__": request,
-            }
-
-            # Add extra params in contained in function signature
-            for key, value in extra_params.items():
-                if key in sig.parameters:
-                    params[key] = value
-
-            if "__user__" in sig.parameters:
-                __user__ = {
-                    "id": user.id,
-                    "email": user.email,
-                    "name": user.name,
-                    "role": user.role,
-                }
-
-                try:
-                    if hasattr(function_module, "UserValves"):
-                        __user__["valves"] = function_module.UserValves(
-                            **Functions.get_user_valves_by_id_and_user_id(
-                                filter_id, user.id
-                            )
-                        )
-                except Exception as e:
-                    print(e)
-
-                params = {**params, "__user__": __user__}
-
-            if inspect.iscoroutinefunction(outlet):
-                data = await outlet(**params)
-            else:
-                data = outlet(**params)
-
-        except Exception as e:
-            return Exception(f"Error: {e}")
-
-    return data
 
 
 async def chat_action(request: Request, action_id: str, form_data: dict, user: Any):

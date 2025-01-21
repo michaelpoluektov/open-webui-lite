@@ -158,7 +158,6 @@ from open_webui.utils.models import (
 )
 from open_webui.utils.chat import (
     generate_chat_completion as chat_completion_handler,
-    chat_completed as chat_completed_handler,
     chat_action as chat_action_handler,
 )
 from open_webui.utils.middleware import process_chat_payload, process_chat_response
@@ -554,19 +553,6 @@ async def chat_completion(
 # Alias for chat_completion (Legacy)
 generate_chat_completions = chat_completion
 generate_chat_completion = chat_completion
-
-
-@app.post("/api/chat/completed")
-async def chat_completed(
-    request: Request, form_data: dict, user=Depends(get_verified_user)
-):
-    try:
-        return await chat_completed_handler(request, form_data, user)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
 
 
 @app.post("/api/chat/actions/{action_id}")
