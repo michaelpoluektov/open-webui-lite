@@ -13,10 +13,6 @@ from open_webui.socket.main import (
 )
 from open_webui.functions import generate_function_chat_completion
 
-from open_webui.routers.openai import (
-    generate_chat_completion as generate_openai_chat_completion,
-)
-
 
 from open_webui.models.functions import Functions
 
@@ -56,13 +52,8 @@ async def generate_chat_completion(
         except Exception as e:
             raise e
 
-    if model.get("pipe"):
-        # Below does not require bypass_filter because this is the only route the uses this function and it is already bypassing the filter
-        return await generate_function_chat_completion(
-            request, form_data, user=user, models=models
-        )
-    return await generate_openai_chat_completion(
-        request=request, form_data=form_data, user=user, bypass_filter=bypass_filter
+    return await generate_function_chat_completion(
+        request, form_data, user=user, models=models
     )
 
 
