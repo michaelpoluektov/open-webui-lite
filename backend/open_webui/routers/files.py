@@ -111,7 +111,7 @@ async def list_files(user=Depends(get_verified_user)):
 @router.delete("/all")
 async def delete_all_files(user=Depends(get_admin_user)):
     result = Files.delete_all_files()
-    if not result
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ERROR_MESSAGES.DEFAULT("Error deleting files"),
@@ -183,9 +183,7 @@ async def update_file_data_content_by_id(
             detail=ERROR_MESSAGES.NOT_FOUND,
         )
     try:
-        process_file(
-            request, ProcessFileForm(file_id=id, content=form_data.content)
-        )
+        process_file(request, ProcessFileForm(file_id=id, content=form_data.content))
         file = Files.get_file_by_id(id=id)
     except Exception as e:
         log.exception(e)
