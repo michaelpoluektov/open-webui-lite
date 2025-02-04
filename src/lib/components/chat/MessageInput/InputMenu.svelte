@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
 	import { flyAndScale } from '$lib/utils/transitions';
-	import { getContext, tick } from 'svelte';
+	import { getContext, tick, onMount } from 'svelte';
 
 	import { tools as _tools } from '$lib/stores';
 	import { getTools } from '$lib/apis/tools';
@@ -20,10 +20,6 @@
 	let tools = {};
 	let show = false;
 
-	$: if (show) {
-		init();
-	}
-
 	const init = async () => {
 		if ($_tools === null) {
 			_tools.set(await getTools(localStorage.token));
@@ -38,6 +34,9 @@
 			return a;
 		}, {});
 	};
+	onMount(async () => {
+		await init();
+	});
 </script>
 
 <Dropdown

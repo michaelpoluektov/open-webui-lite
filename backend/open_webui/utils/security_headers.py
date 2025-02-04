@@ -56,6 +56,9 @@ def set_security_headers() -> Dict[str, str]:
             if header:
                 options.update(header)
 
+    # HACK
+    if options.get("Content-Security-Policy", None):
+        options.pop("X-Frame-Options", None)
     return options
 
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import hljs from 'highlight.js';
 	import mermaid from 'mermaid';
 
 	import { v4 as uuidv4 } from 'uuid';

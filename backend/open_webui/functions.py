@@ -121,8 +121,7 @@ async def generate_function_chat_completion(
     async def execute_pipe(pipe, params):
         if inspect.iscoroutinefunction(pipe):
             return await pipe(**params)
-        else:
-            return pipe(**params)
+        return pipe(**params)
 
     async def get_message_content(res: str | Generator | AsyncGenerator) -> str:
         if isinstance(res, str):
