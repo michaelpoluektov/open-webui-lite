@@ -24,6 +24,7 @@
 	export let preset = true;
 
 	let loading = false;
+	let success = false;
 
 	let filesInputElement;
 	let inputFiles;
