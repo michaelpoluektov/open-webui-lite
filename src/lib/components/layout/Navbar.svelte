@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import { toast } from 'svelte-sonner';
 
 	import {
 		WEBUI_NAME,
@@ -13,14 +12,14 @@
 		user
 	} from '$lib/stores';
 
-	import ShareChatModal from '../chat/ShareChatModal.svelte';
 	import ModelSelector from '../chat/ModelSelector.svelte';
+	import ShareChatModal from '../chat/ShareChatModal.svelte';
 	import Tooltip from '../common/Tooltip.svelte';
+	import AdjustmentsHorizontal from '../icons/AdjustmentsHorizontal.svelte';
+	import MenuLines from '../icons/MenuLines.svelte';
+	import PencilSquare from '../icons/PencilSquare.svelte';
 	import Menu from './Navbar/Menu.svelte';
 	import UserMenu from './Sidebar/UserMenu.svelte';
-	import MenuLines from '../icons/MenuLines.svelte';
-	import AdjustmentsHorizontal from '../icons/AdjustmentsHorizontal.svelte';
-	import PencilSquare from '../icons/PencilSquare.svelte';
 
 	const i18n = getContext('i18n');
 

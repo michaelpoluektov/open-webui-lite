@@ -25,7 +25,6 @@
 		models,
 		settings,
 		showArtifacts,
-		showCallOverlay,
 		showControls,
 		showOverview,
 		showSidebar,
@@ -56,6 +55,7 @@
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import ChatControls from './ChatControls.svelte';
 	import Placeholder from './Placeholder.svelte';
+	import Tooltip from '../common/Tooltip.svelte';
 
 	export let chatIdProp = '';
 
@@ -174,8 +174,6 @@
 
 		history.currentId = _messageId;
 
-		await tick();
-		await tick();
 		await tick();
 
 		const messageElement = document.getElementById(`message-${message.id}`);
@@ -370,7 +368,6 @@
 			}
 
 			if (!value) {
-				showCallOverlay.set(false);
 				showOverview.set(false);
 				showArtifacts.set(false);
 			}
@@ -390,7 +387,7 @@
 
 	const initNewChat = async () => {
 		if ($page.url.searchParams.get('models')) {
-			selectedModels = $page.url.searchParams.get('models')?.split(',');
+			selectedModels = $page.url.searchParams.get('models')?.split(',') ?? [];
 		} else if ($page.url.searchParams.get('model')) {
 			const urlModels = $page.url.searchParams.get('model')?.split(',');
 
@@ -439,7 +436,6 @@
 		}
 
 		showControls.set(false);
-		showCallOverlay.set(false);
 		showOverview.set(false);
 		showArtifacts.set(false);
 
@@ -471,11 +467,6 @@
 				?.split(',')
 				.map((id) => id.trim())
 				.filter((id) => id);
-		}
-
-		if ($page.url.searchParams.get('call') === 'true') {
-			showCallOverlay.set(true);
-			showControls.set(true);
 		}
 
 		if ($page.url.searchParams.get('q')) {
@@ -633,7 +624,7 @@
 		}, 1000);
 	};
 
-	const createMessagePair = async (userPrompt) => {
+	const createMessagePair = async (userPrompt: string) => {
 		prompt = '';
 		if (selectedModels.length === 0) {
 			toast.error($i18n.t('Model not selected'));
@@ -857,24 +848,6 @@
 
 			if ($settings.responseAutoCopy) {
 				copyToClipboard(message.content);
-			}
-
-			if ($settings.responseAutoPlayback && !$showCallOverlay) {
-				await tick();
-				document.getElementById(`speak-button-${message.id}`)?.click();
-			}
-
-			// Emit chat event for TTS
-			let lastMessageContentPart =
-				getMessageContentParts(message.content, $config?.audio?.tts?.split_on ?? 'punctuation')?.at(
-					-1
-				) ?? '';
-			if (lastMessageContentPart) {
-				eventTarget.dispatchEvent(
-					new CustomEvent('chat', {
-						detail: { id: message.id, content: lastMessageContentPart }
-					})
-				);
 			}
 			eventTarget.dispatchEvent(
 				new CustomEvent('chat:finish', {

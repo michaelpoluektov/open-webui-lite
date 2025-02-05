@@ -29,7 +29,7 @@
 			a[tool.id] = {
 				name: tool.name,
 				description: tool.meta.description,
-				enabled: selectedToolIds.includes(tool.id)
+				enabled: true
 			};
 			return a;
 		}, {});
