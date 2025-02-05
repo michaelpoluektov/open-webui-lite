@@ -68,7 +68,7 @@
 
 			if (res) {
 				toast.success($i18n.t('OpenAI API settings updated'));
-				await models.set(await getModels());
+				models.set(await getModels());
 			}
 		}
 	};

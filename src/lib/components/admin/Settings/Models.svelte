@@ -26,6 +26,9 @@
 	import ConfirmDialog from '$lib/components/common/ConfirmDialog.svelte';
 	import Cog6 from '$lib/components/icons/Cog6.svelte';
 	import ConfigureModelsModal from './Models/ConfigureModelsModal.svelte';
+	import Wrench from '$lib/components/icons/Wrench.svelte';
+	import ArrowDownTray from '$lib/components/icons/ArrowDownTray.svelte';
+	import ManageModelsModal from './Models/ManageModelsModal.svelte';
 
 	let importFiles;
 	let modelsImportInputElement: HTMLInputElement;
@@ -39,6 +42,7 @@
 	let selectedModelId = null;
 
 	let showConfigModal = false;
+	let showManageModal = false;
 
 	$: if (models) {
 		filteredModels = models
@@ -138,6 +142,7 @@
 </script>
 
 <ConfigureModelsModal bind:show={showConfigModal} initHandler={init} />
+<ManageModelsModal bind:show={showManageModal} />
 
 {#if models !== null}
 	{#if selectedModelId === null}
@@ -151,10 +156,22 @@
 					>
 				</div>
 
-				<div>
-					<Tooltip content={$i18n.t('Configure')}>
+				<div class="flex items-center gap-1.5">
+					<Tooltip content={$i18n.t('Manage Models')}>
 						<button
-							class=" px-2.5 py-1 rounded-full flex gap-1 items-center"
+							class=" p-1 rounded-full flex gap-1 items-center"
+							type="button"
+							on:click={() => {
+								showManageModal = true;
+							}}
+						>
+							<ArrowDownTray />
+						</button>
+					</Tooltip>
+
+					<Tooltip content={$i18n.t('Settings')}>
+						<button
+							class=" p-1 rounded-full flex gap-1 items-center"
 							type="button"
 							on:click={() => {
 								showConfigModal = true;
@@ -208,19 +225,19 @@
 								</div>
 							</div>
 
-							<div class="flex-1 self-center {(model?.is_active ?? true) ? '' : 'text-gray-500'}">
+							<div class=" flex-1 self-center {(model?.is_active ?? true) ? '' : 'text-gray-500'}">
 								<Tooltip
 									content={marked.parse(
-										model?.meta?.description ? model.meta.description : model.id
+										!!model?.meta?.description ? model?.meta?.description : model.id
 									)}
-									className="w-fit"
+									className=" w-fit"
 									placement="top-start"
 								>
-									<div class="font-semibold line-clamp-1">{model.name}</div>
+									<div class="  font-semibold line-clamp-1">{model.name}</div>
 								</Tooltip>
-								<div class="text-xs overflow-hidden text-ellipsis line-clamp-1 text-gray-500">
-									<span class="line-clamp-1">
-										{model?.meta?.description ? model.meta.description : model.id}
+								<div class=" text-xs overflow-hidden text-ellipsis line-clamp-1 text-gray-500">
+									<span class=" line-clamp-1">
+										{!!model?.meta?.description ? model?.meta?.description : model.id}
 									</span>
 								</div>
 							</div>

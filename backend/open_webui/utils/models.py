@@ -52,15 +52,8 @@ async def get_all_models(request):
     if len(models) == 0:
         return []
 
-    global_action_ids = [
-        function.id for function in Functions.get_global_action_functions()
-    ]
-    enabled_action_ids = [
-        function.id
-        for function in Functions.get_functions_by_type("action", active_only=True)
-    ]
-
     custom_models = Models.get_all_models()
+    new_models = []
     for custom_model in custom_models:
         if custom_model.base_model_id is None:
             for model in models:
@@ -94,8 +87,7 @@ async def get_all_models(request):
             if not (bmid == model["id"] or bmid == model["id"].split(":")[0]):
                 continue
             owned_by = model["owned_by"]
-            if "pipe" in model:
-                pipe = model["pipe"]
+            pipe = model.get("pipe", pipe)
             break
 
         if custom_model.meta:
@@ -103,7 +95,7 @@ async def get_all_models(request):
             if "actionIds" in meta:
                 action_ids.extend(meta["actionIds"])
 
-        models.append(
+        new_models.append(
             {
                 "id": f"{custom_model.id}",
                 "name": custom_model.name,
@@ -149,7 +141,15 @@ async def get_all_models(request):
             function_module, _, _ = load_function_module_by_id(function_id)
             request.app.state.FUNCTIONS[function_id] = function_module
 
-    for model in models:
+    global_action_ids = [
+        function.id for function in Functions.get_global_action_functions()
+    ]
+    enabled_action_ids = [
+        function.id
+        for function in Functions.get_functions_by_type("action", active_only=True)
+    ]
+
+    for model in new_models:
         action_ids = [
             action_id
             for action_id in list(set(model.pop("action_ids", []) + global_action_ids))
@@ -166,10 +166,10 @@ async def get_all_models(request):
             model["actions"].extend(
                 get_action_items_from_module(action_function, function_module)
             )
-    log.debug(f"get_all_models() returned {len(models)} models")
+    log.debug(f"get_all_models() returned {len(new_models)} models")
 
-    request.app.state.MODELS = {model["id"]: model for model in models}
-    return models
+    request.app.state.MODELS = {model["id"]: model for model in new_models}
+    return new_models
 
 
 def check_model_access(user, model):

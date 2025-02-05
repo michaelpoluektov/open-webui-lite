@@ -25,6 +25,7 @@ export const getModels = async (token: string = '', base: boolean = false) => {
   }
 
   const models = res?.data ?? [];
+  console.log(models);
   return models;
 };
 

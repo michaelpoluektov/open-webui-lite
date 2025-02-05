@@ -77,16 +77,16 @@ async def get_function_models(request):
             )
             continue
 
-        sub_pipes = []
+        sub_pipes: list[dict] = []
         # Check if pipes is a function or a list
         try:
             if callable(function_module.pipes):
-                sub_pipes = function_module.pipes()
+                sub_pipes: list[dict] = function_module.pipes()
             else:
-                sub_pipes = function_module.pipes
+                sub_pipes: list[dict] = function_module.pipes
         except Exception as e:
             log.exception(e)
-            sub_pipes = []
+            sub_pipes: list[dict] = []
 
         log.debug(
             f"get_function_models: function '{pipe.id}' is a manifold of {sub_pipes}"
