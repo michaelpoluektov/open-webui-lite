@@ -259,7 +259,7 @@ async def ldap_auth(request: Request, response: Response, form_data: LdapForm):
                 except HTTPException:
                     raise
                 except Exception as err:
-                    raise HTTPException(500, detail=ERROR_MESSAGES.DEFAULT(err))
+                    raise HTTPException(500, detail=ERROR_MESSAGES.DEFAULT(str(err)))
 
             user = Auths.authenticate_user_by_trusted_header(mail)
 
@@ -324,7 +324,7 @@ async def signin(request: Request, response: Response, form_data: SigninForm):
                 ),
             )
         user = Auths.authenticate_user_by_trusted_header(trusted_email)
-    elif WEBUI_AUTH == False:
+    elif WEBUI_AUTH is False:
         admin_email = "admin@localhost"
         admin_password = "admin"
 
@@ -502,29 +502,31 @@ async def signup(request: Request, response: Response, form_data: SignupForm):
 async def signout(request: Request, response: Response):
     response.delete_cookie("token")
 
-    if ENABLE_OAUTH_SIGNUP.value:
-        oauth_id_token = request.cookies.get("oauth_id_token")
-        if oauth_id_token:
-            try:
-                async with ClientSession() as session:
-                    async with session.get(OPENID_PROVIDER_URL.value) as resp:
-                        if resp.status == 200:
-                            openid_data = await resp.json()
-                            logout_url = openid_data.get("end_session_endpoint")
-                            if logout_url:
-                                response.delete_cookie("oauth_id_token")
-                                return RedirectResponse(
-                                    url=f"{logout_url}?id_token_hint={oauth_id_token}"
-                                )
-                        else:
-                            raise HTTPException(
-                                status_code=resp.status,
-                                detail="Failed to fetch OpenID configuration",
-                            )
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
+    if not ENABLE_OAUTH_SIGNUP.value:
+        return {"status": True}
 
-    return {"status": True}
+    oauth_id_token = request.cookies.get("oauth_id_token")
+    if not oauth_id_token:
+        return {"status": True}
+
+    try:
+        async with ClientSession() as session:
+            async with session.get(OPENID_PROVIDER_URL.value) as resp:
+                if resp.status != 200:
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail="Failed to fetch OpenID configuration",
+                    )
+                openid_data = await resp.json()
+                logout_url = openid_data.get("end_session_endpoint")
+                if not logout_url:
+                    return {"status": True}
+                response.delete_cookie("oauth_id_token")
+                return RedirectResponse(
+                    url=f"{logout_url}?id_token_hint={oauth_id_token}"
+                )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 ############################
