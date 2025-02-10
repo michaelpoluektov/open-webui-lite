@@ -13,3 +13,15 @@ export enum TTS_RESPONSE_SPLIT {
 	PARAGRAPHS = 'paragraphs',
 	NONE = 'none'
 }
+
+export interface Model {
+	id: string;
+	name: string;
+	info?: {
+		meta?: {
+			capabilities?: {
+				usage?: boolean;
+			};
+		};
+	};
+}

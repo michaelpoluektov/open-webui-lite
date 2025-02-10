@@ -26,7 +26,7 @@ from fastapi import (
 from fastapi.openapi.docs import get_swagger_ui_html
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -42,6 +42,7 @@ from open_webui.socket.main import (
 from open_webui.routers import (
     openai,
     evaluations,
+    dsp,
     tasks,
     auths,
     chats,
@@ -168,6 +169,9 @@ from open_webui.utils.oauth import oauth_manager
 from open_webui.utils.security_headers import SecurityHeadersMiddleware
 
 from open_webui.tasks import stop_task, list_tasks  # Import from tasks.py
+
+# Add after other imports
+DSP_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dsp-frontend", "out")
 
 if SAFE_MODE:
     print("SAFE MODE ENABLED")
@@ -401,6 +405,7 @@ app.include_router(openai.router, prefix="/openai", tags=["openai"])
 app.include_router(
     evaluations.router, prefix="/api/v1/evaluations", tags=["evaluations"]
 )
+app.include_router(dsp.router, prefix="/api/v1/dsp", tags=["dsp"])
 
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 
@@ -793,14 +798,18 @@ def swagger_ui_html(*args, **kwargs):
 
 applications.get_swagger_ui_html = swagger_ui_html
 
-if os.path.exists(FRONTEND_BUILD_DIR):
+if FRONTEND_BUILD_DIR and os.path.exists(FRONTEND_BUILD_DIR):
     mimetypes.add_type("text/javascript", ".js")
-    app.mount(
-        "/",
-        SPAStaticFiles(directory=FRONTEND_BUILD_DIR, html=True),
-        name="spa-static-files",
-    )
+    
+    # Mount DSP frontend first
+    if os.path.exists(DSP_FRONTEND_DIR):
+        log.info(f"Mounting DSP frontend from '{DSP_FRONTEND_DIR}'")
+        app.mount("/dsp/", SPAStaticFiles(directory=DSP_FRONTEND_DIR, html=True), name="dsp-frontend")
+    else:
+        log.warning(f"DSP Frontend build directory not found at '{DSP_FRONTEND_DIR}'.")
+
+    # Mount main frontend last as it's the catch-all
+    log.info(f"Mounting main frontend from '{FRONTEND_BUILD_DIR}'")
+    app.mount("/", SPAStaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="frontend")
 else:
-    log.warning(
-        f"Frontend build directory not found at '{FRONTEND_BUILD_DIR}'. Serving API only."
-    )
+    log.warning(f"Frontend build directory not found at '{FRONTEND_BUILD_DIR}'. Serving API only.")

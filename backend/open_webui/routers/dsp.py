@@ -1,4 +1,5 @@
 import asyncio
+import json
 import copy
 import io
 import logging
@@ -12,32 +13,24 @@ import numpy as np
 from audio_dsp.design.parse_json import DspJson, Graph, insert_forks, make_pipeline
 from audio_dsp.design.pipeline import Pipeline
 from audio_dsp.models.stage import all_models
-from fastapi import APIRouter, Depends, File, Query, UploadFile
-from fastapi.exceptions import HTTPException
+from fastapi import APIRouter, Depends, File, Query, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
-from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.utils.auth import get_verified_user
+from open_webui.models.dsp_sessions import DspSessions, DspSessionModel
 
 log = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
-class Session(TypedDict):
-    graph: Graph
-    forked_graph: Graph
-    pipeline: Optional[Pipeline]
-
-
-sessions: dict[str, Session] = {}
 graph_update_subscriptions: dict[str, list[asyncio.Queue]] = {}
 
 
-def notify_graph_update(session_id: str):
+def notify_graph_update(session_id: str, user_id: str):
     if session_id in graph_update_subscriptions:
-        session = sessions.get(session_id)
-        if session is None or "graph" not in session:
+        session = DspSessions.get_session(session_id, user_id=user_id)
+        if session is None:
             return
-        data = session["graph"].model_dump_json()
+        data = session.graph
         for queue in graph_update_subscriptions[session_id]:
             queue.put_nowait(data)
 
@@ -61,21 +54,61 @@ def get_params_schema(_=Depends(get_verified_user)):
     return JSONResponse(params)
 
 
+@router.post("/session/{session_id}")
+def create_session(session_id: str, user=Depends(get_verified_user)) -> DspSessionModel:
+    """Create a new DSP session."""
+    if DspSessions.get_session(session_id, user.id):
+        raise HTTPException(status_code=409, detail="Session already exists")
+    return DspSessions.create_session(session_id, user.id)
+
+
+@router.get("/session/{session_id}")
+def get_session(session_id: str, user=Depends(get_verified_user)) -> DspSessionModel:
+    """Get a DSP session by ID."""
+    session = DspSessions.get_session(session_id, user.id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@router.get("/sessions")
+def list_sessions(user=Depends(get_verified_user)) -> list[DspSessionModel]:
+    """List all DSP sessions for the current user."""
+    return DspSessions.get_user_sessions(user.id)
+
+
+@router.delete("/session/{session_id}")
+def delete_session(session_id: str, user=Depends(get_verified_user)):
+    """Delete a DSP session."""
+    if not DspSessions.delete_session(session_id, user.id):
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"message": "Session deleted"}
+
+
 @router.post("/graph/params")
-def set_parameters(params: dict, session_id: str, _=Depends(get_verified_user)):
-    session = sessions.get(session_id)
-    if session is None or "graph" not in session:
-        raise HTTPException(
-            status_code=400, detail="No graph has been set for this session."
-        )
-    graph = session["graph"]
+def set_parameters(params: dict, session_id: str, user=Depends(get_verified_user)):
+    session = DspSessions.get_session(session_id, user.id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    graph = Graph.model_validate(session.graph)
     for node in graph.nodes:
         if node.placement.name in params and hasattr(node, "parameters"):
             node.parameters = node.parameters.__class__(**params[node.placement.name])
-    session["pipeline"] = make_pipeline(
+
+    forked_graph = insert_forks(graph)
+    make_pipeline(
         DspJson(ir_version=1, producer_name="test", producer_version="0.1", graph=graph)
     )
-    notify_graph_update(session_id)
+
+    # Update session with new graphs
+    session = DspSessions.update_session(
+        session_id, user.id, graph.model_dump(), forked_graph.model_dump()
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    notify_graph_update(session_id, user.id)
     return {"message": "Parameters successfully set."}
 
 
@@ -133,28 +166,34 @@ def array_to_wav_bytes(data: np.ndarray, sample_rate: int):
 async def run_audio(
     session_id: str = Query(...),
     files: list[UploadFile] = File(...),
-    _=Depends(get_verified_user),
+    user=Depends(get_verified_user),
 ):
-    session = sessions.get(session_id)
-    if session is None or "pipeline" not in session or session["pipeline"] is None:
-        raise HTTPException(
-            status_code=400, detail="No graph has been set for this session."
-        )
-    pipeline = session["pipeline"]
-    graph = session.get("graph")
-    forked_graph = session.get("forked_graph")
-    if not graph or not hasattr(graph, "inputs"):
+    session = DspSessions.get_session(session_id, user.id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    graph = Graph.model_validate(session.graph)
+    forked_graph = Graph.model_validate(session.forked_graph)
+
+    pipeline = make_pipeline(
+        DspJson(ir_version=1, producer_name="test", producer_version="0.1", graph=graph)
+    )
+
+    if not hasattr(graph, "inputs"):
         raise HTTPException(status_code=400, detail="Graph inputs not defined.")
+
     expected_input_count = len(graph.inputs)
     if len(files) != expected_input_count:
         raise HTTPException(
             status_code=400,
             detail=f"Expected {expected_input_count} input files, but got {len(files)}.",
         )
+
     audio_segments = []
     sample_rates = []
     frame_counts = []
     common_sample_width = None
+
     for file, input_def in zip(files, graph.inputs):
         file_bytes = await file.read()
         raw_data, n_channels, sample_width, sample_rate, n_frames = parse_wav_bytes(
@@ -173,10 +212,12 @@ async def run_audio(
             raise HTTPException(
                 status_code=400, detail="All files must have the same sample width."
             )
+
     if len(set(sample_rates)) != 1:
         raise HTTPException(
             status_code=400, detail="All files must have the same sample rate."
         )
+
     min_frames = min(frame_counts)
     audio_segments = [seg[:min_frames, :] for seg in audio_segments]
     combined_audio = np.hstack(audio_segments)
@@ -184,6 +225,7 @@ async def run_audio(
     result = executor(combined_audio)
     processed_audio = result.data
     output_sample_rate = int(result.fs)
+
     output_files = {}
     out_channel_idx = 0
     for output_def in forked_graph.outputs:
@@ -194,6 +236,7 @@ async def run_audio(
         out_channel_idx += num_channels
         wav_bytes = array_to_wav_bytes(out_data, output_sample_rate)
         output_files[output_def.name] = wav_bytes
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for out_name, wav_bytes in output_files.items():
@@ -206,28 +249,33 @@ async def run_audio(
     )
 
 
-@router.post(
-    "/graph",
-)
-def set_graph(graph: Graph, session_id: str, _=Depends(get_verified_user)):
+@router.post("/graph")
+def set_graph(graph: Graph, session_id: str, user=Depends(get_verified_user)):
     try:
-        json_data = DspJson(
-            ir_version=1, producer_name="test", producer_version="0.1", graph=graph
-        )
         forked_graph = insert_forks(graph)
-        pipeline = make_pipeline(json_data)
-        sessions[session_id] = {
-            "graph": graph,
-            "forked_graph": forked_graph,
-            "pipeline": pipeline,
-        }
-        notify_graph_update(session_id)
+
+        # validate
+        make_pipeline(
+            DspJson(
+                ir_version=1, producer_name="test", producer_version="0.1", graph=graph
+            )
+        )
+
+        # Update session with new graphs
+        session = DspSessions.update_session(
+            session_id, user.id, graph.model_dump(), forked_graph.model_dump()
+        )
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        notify_graph_update(session_id, user.id)
+
         schema_dict = {
             node.placement.name: node.parameters.__class__.model_json_schema()
             for node in forked_graph.nodes
             if hasattr(node, "parameters")
         }
-        return JSONResponse(schema_dict)
+        return schema_dict
     except Exception as e:
         return JSONResponse(
             content={"error": str(e), "traceback": traceback.format_exc()},
@@ -236,15 +284,20 @@ def set_graph(graph: Graph, session_id: str, _=Depends(get_verified_user)):
 
 
 @router.get("/graph")
-def get_graph(session_id: str, _=Depends(get_verified_user)):
-    session = sessions.get(session_id)
-    if session is None or "graph" not in session:
-        raise HTTPException(status_code=404, detail="No graph is set for this session.")
-    return session["graph"]
+def get_graph(session_id: str, user=Depends(get_verified_user)):
+    session = DspSessions.get_session(session_id, user.id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return Graph.model_validate(session.graph)
 
 
 @router.get("/graph-updates")
-async def graph_updates(session_id: str, _=Depends(get_verified_user)):
+async def graph_updates(session_id: str, user=Depends(get_verified_user)):
+    # Verify session exists and belongs to user
+    session = DspSessions.get_session(session_id, user.id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     queue = asyncio.Queue()
     if session_id not in graph_update_subscriptions:
         graph_update_subscriptions[session_id] = []
@@ -254,7 +307,7 @@ async def graph_updates(session_id: str, _=Depends(get_verified_user)):
         try:
             while True:
                 data = await queue.get()
-                yield f"data: {data}\n\n"
+                yield f"data: {json.dumps(data)}\n\n"
         except asyncio.CancelledError:
             graph_update_subscriptions[session_id].remove(queue)
             raise

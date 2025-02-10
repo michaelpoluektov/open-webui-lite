@@ -7,6 +7,19 @@ ARG BUILD_HASH=dev-build
 ARG UID=0
 ARG GID=0
 
+######## DSP frontend ########
+FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS dsp-build
+ARG BUILD_HASH
+
+WORKDIR /app
+
+COPY dsp-frontend/package.json dsp-frontend/package-lock.json ./
+RUN npm ci
+
+COPY dsp-frontend/ .
+ENV APP_BUILD_HASH=${BUILD_HASH}
+RUN npm run build
+
 ######## WebUI frontend ########
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
 ARG BUILD_HASH
@@ -75,10 +88,9 @@ RUN pip3 install --no-cache-dir -r requirements.txt && \
   python -c "import os; import tiktoken; tiktoken.get_encoding(os.environ['TIKTOKEN_ENCODING_NAME'])" && \
   chown -R $UID:$GID /app/backend/data/
 
-
-
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
+COPY --chown=$UID:$GID --from=dsp-build /app/out /app/dsp-frontend/out
 COPY --chown=$UID:$GID --from=build /app/CHANGELOG.md /app/CHANGELOG.md
 COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 

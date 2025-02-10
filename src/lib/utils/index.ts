@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import sha256 from 'js-sha256';
 
 import { WEBUI_BASE_URL } from '$lib/constants';
-import { TTS_RESPONSE_SPLIT } from '$lib/types';
 
 //////////////////////////
 // Helper functions
@@ -714,25 +713,6 @@ export const extractSentencesForAudio = (text: string) => {
 		}
 		return mergedTexts;
 	}, [] as string[]);
-};
-
-export const getMessageContentParts = (content: string, split_on: string = 'punctuation') => {
-	const messageContentParts: string[] = [];
-
-	switch (split_on) {
-		default:
-		case TTS_RESPONSE_SPLIT.PUNCTUATION:
-			messageContentParts.push(...extractSentencesForAudio(content));
-			break;
-		case TTS_RESPONSE_SPLIT.PARAGRAPHS:
-			messageContentParts.push(...extractParagraphsForAudio(content));
-			break;
-		case TTS_RESPONSE_SPLIT.NONE:
-			messageContentParts.push(cleanText(content));
-			break;
-	}
-
-	return messageContentParts;
 };
 
 export const blobToFile = (blob, fileName) => {
