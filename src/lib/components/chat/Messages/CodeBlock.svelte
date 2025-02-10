@@ -1,13 +1,8 @@
 <script lang="ts">
-	import hljs from 'highlight.js';
-	import mermaid from 'mermaid';
-
 	import { v4 as uuidv4 } from 'uuid';
 
 	import { copyToClipboard } from '$lib/utils';
 	import { createEventDispatcher, getContext, onMount } from 'svelte';
-
-	import 'highlight.js/styles/github-dark.min.css';
 
 	import CodeEditor from '$lib/components/common/CodeEditor.svelte';
 	import SvgPanZoom from '$lib/components/common/SVGPanZoom.svelte';
@@ -37,6 +32,7 @@
 	};
 
 	let _token = null;
+	let mermaid = undefined;
 
 	let mermaidHtml = null;
 
@@ -71,6 +67,24 @@
 
 	const drawMermaidDiagram = async () => {
 		try {
+			if (!mermaid) {
+				const { default: mermaidLib } = await import('mermaid');
+				mermaid = mermaidLib;
+				// Then use mermaid normally:
+				if (document.documentElement.classList.contains('dark')) {
+					mermaid.initialize({
+						startOnLoad: true,
+						theme: 'dark',
+						securityLevel: 'loose'
+					});
+				} else {
+					mermaid.initialize({
+						startOnLoad: true,
+						theme: 'default',
+						securityLevel: 'loose'
+					});
+				}
+			}
 			if (await mermaid.parse(code)) {
 				const { svg } = await mermaid.render(`mermaid-${uuidv4()}`, code);
 				mermaidHtml = svg;
@@ -101,23 +115,11 @@
 	$: dispatch('code', { lang, code });
 
 	onMount(async () => {
-		console.log('codeblock', lang, code);
+		await import('highlight.js');
+		await import('highlight.js/styles/github-dark.min.css');
 
 		if (lang) {
 			dispatch('code', { lang, code });
-		}
-		if (document.documentElement.classList.contains('dark')) {
-			mermaid.initialize({
-				startOnLoad: true,
-				theme: 'dark',
-				securityLevel: 'loose'
-			});
-		} else {
-			mermaid.initialize({
-				startOnLoad: true,
-				theme: 'default',
-				securityLevel: 'loose'
-			});
 		}
 	});
 </script>

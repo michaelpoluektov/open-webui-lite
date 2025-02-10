@@ -46,7 +46,6 @@ export const showChangelog = writable(false);
 export const showControls = writable(false);
 export const showOverview = writable(false);
 export const showArtifacts = writable(false);
-export const showCallOverlay = writable(false);
 
 export const temporaryChatEnabled = writable(false);
 export const scrollPaginationEnabled = writable(false);
@@ -58,105 +57,105 @@ export const playingNotificationSound = writable(false);
 export type Model = OpenAIModel;
 
 type BaseModel = {
-  id: string;
-  name: string;
-  info?: ModelConfig;
-  owned_by: 'ollama' | 'openai' | 'arena';
+	id: string;
+	name: string;
+	info?: ModelConfig;
+	owned_by: 'ollama' | 'openai' | 'arena';
 };
 
 export interface OpenAIModel extends BaseModel {
-  owned_by: 'openai';
-  external: boolean;
-  source?: string;
+	owned_by: 'openai';
+	external: boolean;
+	source?: string;
 }
 
 type Settings = {
-  models?: string[];
-  conversationMode?: boolean;
-  speechAutoSend?: boolean;
-  responseAutoPlayback?: boolean;
-  showUsername?: boolean;
-  notificationEnabled?: boolean;
-  title?: TitleSettings;
-  splitLargeDeltas?: boolean;
-  chatDirection: 'LTR' | 'RTL';
+	models?: string[];
+	conversationMode?: boolean;
+	speechAutoSend?: boolean;
+	responseAutoPlayback?: boolean;
+	showUsername?: boolean;
+	notificationEnabled?: boolean;
+	title?: TitleSettings;
+	splitLargeDeltas?: boolean;
+	chatDirection: 'LTR' | 'RTL';
 
-  system?: string;
-  requestFormat?: string;
-  keepAlive?: string;
-  seed?: number;
-  temperature?: string;
-  repeat_penalty?: string;
-  top_k?: string;
-  top_p?: string;
-  num_ctx?: string;
-  num_batch?: string;
-  num_keep?: string;
-  options?: ModelOptions;
+	system?: string;
+	requestFormat?: string;
+	keepAlive?: string;
+	seed?: number;
+	temperature?: string;
+	repeat_penalty?: string;
+	top_k?: string;
+	top_p?: string;
+	num_ctx?: string;
+	num_batch?: string;
+	num_keep?: string;
+	options?: ModelOptions;
 };
 
 type ModelOptions = {
-  stop?: boolean;
+	stop?: boolean;
 };
 
 type TitleSettings = {
-  auto?: boolean;
-  model?: string;
-  modelExternal?: string;
-  prompt?: string;
+	auto?: boolean;
+	model?: string;
+	modelExternal?: string;
+	prompt?: string;
 };
 
 type Prompt = {
-  command: string;
-  user_id: string;
-  title: string;
-  content: string;
-  timestamp: number;
+	command: string;
+	user_id: string;
+	title: string;
+	content: string;
+	timestamp: number;
 };
 
 type Document = {
-  collection_name: string;
-  filename: string;
-  name: string;
-  title: string;
+	collection_name: string;
+	filename: string;
+	name: string;
+	title: string;
 };
 
 type Config = {
-  status: boolean;
-  name: string;
-  version: string;
-  default_locale: string;
-  default_models: string;
-  default_prompt_suggestions: PromptSuggestion[];
-  features: {
-    auth: boolean;
-    auth_trusted_header: boolean;
-    enable_api_key: boolean;
-    enable_signup: boolean;
-    enable_login_form: boolean;
-    enable_web_search?: boolean;
-    enable_google_drive_integration: boolean;
-    enable_image_generation: boolean;
-    enable_admin_export: boolean;
-    enable_admin_chat_access: boolean;
-    enable_community_sharing: boolean;
-  };
-  oauth: {
-    providers: {
-      [key: string]: string;
-    };
-  };
+	status: boolean;
+	name: string;
+	version: string;
+	default_locale: string;
+	default_models: string;
+	default_prompt_suggestions: PromptSuggestion[];
+	features: {
+		auth: boolean;
+		auth_trusted_header: boolean;
+		enable_api_key: boolean;
+		enable_signup: boolean;
+		enable_login_form: boolean;
+		enable_web_search?: boolean;
+		enable_google_drive_integration: boolean;
+		enable_image_generation: boolean;
+		enable_admin_export: boolean;
+		enable_admin_chat_access: boolean;
+		enable_community_sharing: boolean;
+	};
+	oauth: {
+		providers: {
+			[key: string]: string;
+		};
+	};
 };
 
 type PromptSuggestion = {
-  content: string;
-  title: [string, string];
+	content: string;
+	title: [string, string];
 };
 
 type SessionUser = {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  profile_image_url: string;
+	id: string;
+	email: string;
+	name: string;
+	role: string;
+	profile_image_url: string;
 };

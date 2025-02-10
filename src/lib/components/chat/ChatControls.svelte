@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { SvelteFlowProvider } from '@xyflow/svelte';
-	import { slide } from 'svelte/transition';
 	import { Pane, PaneResizer } from 'paneforge';
 
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { showControls, showCallOverlay, showOverview, showArtifacts } from '$lib/stores';
+	import { showControls, showOverview, showArtifacts } from '$lib/stores';
 
 	import Controls from './Controls/Controls.svelte';
 	import Drawer from '../common/Drawer.svelte';
@@ -40,20 +39,8 @@
 	const handleMediaQuery = async (e) => {
 		if (e.matches) {
 			largeScreen = true;
-
-			if ($showCallOverlay) {
-				showCallOverlay.set(false);
-				await tick();
-				showCallOverlay.set(true);
-			}
 		} else {
 			largeScreen = false;
-
-			if ($showCallOverlay) {
-				showCallOverlay.set(false);
-				await tick();
-				showCallOverlay.set(true);
-			}
 			pane = null;
 		}
 	};
@@ -115,10 +102,6 @@
 		showControls.set(false);
 		showOverview.set(false);
 		showArtifacts.set(false);
-
-		if ($showCallOverlay) {
-			showCallOverlay.set(false);
-		}
 	};
 
 	$: if (!chatId) {
@@ -174,7 +157,7 @@
 			{#if $showControls}
 				<div class="pr-4 pb-8 flex max-h-full min-h-full">
 					<div
-						class="w-full {($showOverview || $showArtifacts) && !$showCallOverlay
+						class="w-full {$showOverview || $showArtifacts
 							? ' '
 							: 'px-4 py-4 bg-white dark:shadow-lg dark:bg-gray-850  border border-gray-50 dark:border-gray-850'}  rounded-xl z-40 pointer-events-auto overflow-y-auto scrollbar-hidden"
 					>

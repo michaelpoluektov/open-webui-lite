@@ -1,12 +1,11 @@
 <script>
-	import { onDestroy, onMount, tick, getContext, createEventDispatcher } from 'svelte';
-	const i18n = getContext('i18n');
+	import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	import Markdown from './Markdown.svelte';
-	import { chatId, mobile, showArtifacts, showControls, showOverview } from '$lib/stores';
-	import FloatingButtons from '../ContentRenderer/FloatingButtons.svelte';
+	import { chatId, mobile, showArtifacts, showControls } from '$lib/stores';
 	import { createMessagesList } from '$lib/utils';
+	import FloatingButtons from '../ContentRenderer/FloatingButtons.svelte';
+	import Markdown from './Markdown.svelte';
 
 	export let id;
 	export let content;
