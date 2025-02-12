@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - dev
+      - dsp
     tags:
       - v*
 
