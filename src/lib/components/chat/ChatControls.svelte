@@ -11,21 +11,16 @@
 	import EllipsisVertical from '../icons/EllipsisVertical.svelte';
 	import Artifacts from './Artifacts.svelte';
 
-	export let history;
-	export let models = [];
-
-	export let chatId = null;
-
-	export let params = {};
-
+	export let history: any;
+	export let models: any[] = [];
+	export let chatId: string | null = null;
+	export let params: Record<string, any> = {};
 	export let showMessage: Function;
+	export let pane: any;
 
-	export let pane;
-
-	let mediaQuery;
+	let mediaQuery: MediaQueryList;
 	let largeScreen = false;
 	let dragged = false;
-
 	let minSize = 0;
 
 	export const openPane = () => {
@@ -36,7 +31,7 @@
 		}
 	};
 
-	const handleMediaQuery = async (e) => {
+	const handleMediaQuery = async (e: MediaQueryListEvent) => {
 		if (e.matches) {
 			largeScreen = true;
 		} else {
@@ -45,41 +40,28 @@
 		}
 	};
 
-	const onMouseDown = (event) => {
+	const onMouseDown = (event: MouseEvent) => {
 		dragged = true;
 	};
 
-	const onMouseUp = (event) => {
-		dragged = false;
+	const onMouseUp = (event: MouseEvent) => {
+		if (dragged) {
+			localStorage.chatControlsSize = pane.size;
+			dragged = false;
+		}
 	};
 
 	onMount(() => {
-		// listen to resize 1024px
 		mediaQuery = window.matchMedia('(min-width: 1024px)');
-
 		mediaQuery.addEventListener('change', handleMediaQuery);
-		handleMediaQuery(mediaQuery);
+		handleMediaQuery(mediaQuery as unknown as MediaQueryListEvent);
 
-		// Select the container element you want to observe
-		const container = document.getElementById('chat-container');
+		const container = document.getElementById('chat-controls');
+		if (!container) return;
 
-		// initialize the minSize based on the container width
-		minSize = Math.floor((350 / container.clientWidth) * 100);
-
-		// Create a new ResizeObserver instance
 		const resizeObserver = new ResizeObserver((entries) => {
-			for (let entry of entries) {
-				const width = entry.contentRect.width;
-				// calculate the percentage of 200px
-				const percentage = (350 / width) * 100;
-				// set the minSize to the percentage, must be an integer
-				minSize = Math.floor(percentage);
-
-				if ($showControls) {
-					if (pane && pane.isExpanded() && pane.getSize() < minSize) {
-						pane.resize(minSize);
-					}
-				}
+			for (const entry of entries) {
+				minSize = entry.contentRect.width;
 			}
 		});
 
@@ -93,7 +75,9 @@
 	onDestroy(() => {
 		showControls.set(false);
 
-		mediaQuery.removeEventListener('change', handleMediaQuery);
+		if (mediaQuery) {
+			mediaQuery.removeEventListener('change', handleMediaQuery);
+		}
 		document.removeEventListener('mousedown', onMouseDown);
 		document.removeEventListener('mouseup', onMouseUp);
 	});

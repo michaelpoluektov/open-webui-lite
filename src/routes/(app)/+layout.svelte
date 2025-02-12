@@ -2,6 +2,7 @@
 	import fileSaver from 'file-saver';
 	import { deleteDB, openDB } from 'idb';
 	import { getContext, onMount, tick } from 'svelte';
+	import { Pane, PaneResizer, PaneGroup } from 'paneforge';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -18,12 +19,15 @@
 		showSettings,
 		temporaryChatEnabled,
 		tools,
-		user
+		user,
+		showDsp
 	} from '$lib/stores';
 
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import DspViewer from '$lib/components/chat/DspViewer.svelte';
+	import EllipsisVertical from '$lib/components/icons/EllipsisVertical.svelte';
 
 	const { saveAs } = fileSaver;
 	const i18n = getContext('i18n');
@@ -42,7 +46,7 @@
 
 				if (DB) {
 					const chats = await DB.getAllFromIndex('chats', 'timestamp');
-					localDBChats = chats.map((item, idx) => chats[chats.length - 1 - idx]);
+					localDBChats = chats.map((_, idx) => chats[chats.length - 1 - idx]);
 
 					if (localDBChats.length === 0) {
 						await deleteDB('Chats');
@@ -82,6 +86,9 @@
 			models.set(modelsData);
 			banners.set(bannersData);
 			tools.set(toolsData);
+
+			// Set showDsp to true by default
+			showDsp.set(true);
 
 			document.addEventListener('keydown', async function (event) {
 				const isCtrlPressed = event.ctrlKey || event.metaKey; // metaKey is for Cmd key on Mac
@@ -179,67 +186,40 @@
 
 <div class="app relative">
 	<div
-		class=" text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-900 h-screen max-h-[100dvh] overflow-auto flex flex-row"
+		class="text-gray-700 dark:text-gray-100 bg-white dark:bg-gray-900 h-screen max-h-[100dvh] overflow-auto flex flex-row"
 	>
 		{#if loaded}
 			{#if !['user', 'admin'].includes($user.role)}
 				<AccountPending />
-			{:else if localDBChats.length > 0}
-				<div class="fixed w-full h-full flex z-50">
-					<div
-						class="absolute w-full h-full backdrop-blur-md bg-white/20 dark:bg-gray-900/50 flex justify-center"
-					>
-						<div class="m-auto pb-44 flex flex-col justify-center">
-							<div class="max-w-md">
-								<div class="text-center dark:text-white text-2xl font-medium z-50">
-									Important Update<br /> Action Required for Chat Log Storage
-								</div>
+			{/if}
 
-								<div class=" mt-4 text-center text-sm dark:text-gray-200 w-full">
-									{$i18n.t(
-										"Saving chat logs directly to your browser's storage is no longer supported. Please take a moment to download and delete your chat logs by clicking the button below. Don't worry, you can easily re-import your chat logs to the backend through"
-									)}
-									<span class="font-semibold dark:text-white"
-										>{$i18n.t('Settings')} > {$i18n.t('Chats')} > {$i18n.t('Import Chats')}</span
-									>. {$i18n.t(
-										'This ensures that your valuable conversations are securely saved to your backend database. Thank you!'
-									)}
-								</div>
-
-								<div class=" mt-6 mx-auto relative group w-fit">
-									<button
-										class="relative z-20 flex px-5 py-2 rounded-full bg-white border border-gray-100 dark:border-none hover:bg-gray-100 transition font-medium text-sm"
-										on:click={async () => {
-											let blob = new Blob([JSON.stringify(localDBChats)], {
-												type: 'application/json'
-											});
-											saveAs(blob, `chat-export-${Date.now()}.json`);
-
-											const tx = DB.transaction('chats', 'readwrite');
-											await Promise.all([tx.store.clear(), tx.done]);
-											await deleteDB('Chats');
-
-											localDBChats = [];
-										}}
-									>
-										Download & Delete
-									</button>
-
-									<button
-										class="text-xs text-center w-full mt-2 text-gray-400 underline"
-										on:click={async () => {
-											localDBChats = [];
-										}}>{$i18n.t('Close')}</button
-									>
-								</div>
+			{#if $showDsp}
+				<div class="flex w-full">
+					<Sidebar />
+					<PaneGroup direction="horizontal" class="flex flex-1">
+						<Pane minSize={20} defaultSize={40} class="flex-1">
+							<div class="flex-1 min-w-0">
+								<slot />
 							</div>
-						</div>
+						</Pane>
+						<PaneResizer class="relative flex w-2 items-center justify-center bg-background group">
+							<div class="z-10 flex h-7 w-5 items-center justify-center rounded-sm">
+								<EllipsisVertical className="size-4 invisible group-hover:visible" />
+							</div>
+						</PaneResizer>
+						<Pane minSize={20} defaultSize={50} class="border-l dark:border-gray-800">
+							<DspViewer />
+						</Pane>
+					</PaneGroup>
+				</div>
+			{:else}
+				<div class="flex w-full">
+					<Sidebar />
+					<div class="flex-1 min-w-0">
+						<slot />
 					</div>
 				</div>
 			{/if}
-
-			<Sidebar />
-			<slot />
 		{/if}
 	</div>
 </div>

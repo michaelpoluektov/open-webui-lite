@@ -158,6 +158,9 @@ class ChatTable:
         try:
             with get_db() as db:
                 chat_item = db.get(Chat, id)
+                # Preserve meta field if not provided in update
+                if "meta" not in chat:
+                    chat["meta"] = chat_item.meta
                 chat_item.chat = chat
                 chat_item.title = chat["title"] if "title" in chat else "New Chat"
                 chat_item.updated_at = int(time.time())
@@ -903,6 +906,45 @@ class ChatTable:
                 return True
         except Exception:
             return False
+
+    def toggle_chat_dsp_by_id(self, id: str) -> Optional[ChatModel]:
+        """Toggle the DSP flag for a chat in its meta field."""
+        try:
+            with get_db() as db:
+                chat = db.get(Chat, id)
+                chat.meta = {
+                    **chat.meta,
+                    "has_dsp": not chat.meta.get("has_dsp", False)
+                }
+                chat.updated_at = int(time.time())
+                db.commit()
+                db.refresh(chat)
+                return ChatModel.model_validate(chat)
+        except Exception:
+            return None
+
+    def set_chat_dsp_by_id(self, id: str, has_dsp: bool) -> Optional[ChatModel]:
+        """Set the DSP flag for a chat in its meta field."""
+        try:
+            with get_db() as db:
+                chat = db.get(Chat, id)
+                chat.meta = {
+                    **chat.meta,
+                    "has_dsp": has_dsp
+                }
+                chat.updated_at = int(time.time())
+                db.commit()
+                db.refresh(chat)
+                return ChatModel.model_validate(chat)
+        except Exception:
+            return None
+
+    def has_dsp(self, id: str) -> bool:
+        """Check if a chat has DSP enabled."""
+        chat = self.get_chat_by_id(id)
+        if not chat:
+            return False
+        return chat.meta.get("has_dsp", False)
 
 
 Chats = ChatTable()

@@ -15,12 +15,8 @@
 	</title>
 </svelte:head>
 
-<div
-	class=" flex flex-col w-full h-screen max-h-[100dvh] {$showSidebar
-		? 'md:max-w-[calc(100%-260px)]'
-		: ''}"
->
-	<div class=" px-2.5 py-1 backdrop-blur-xl">
+<div class="flex flex-col w-full h-screen max-h-[100dvh]">
+	<div class="px-2.5 py-1 backdrop-blur-xl">
 		<div class=" flex items-center">
 			<div class="{$showSidebar ? 'md:hidden' : ''} flex flex-none items-center">
 				<button

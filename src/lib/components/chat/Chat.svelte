@@ -32,7 +32,8 @@
 		temporaryChatEnabled,
 		tools,
 		user,
-		WEBUI_NAME
+		WEBUI_NAME,
+		showDsp
 	} from '$lib/stores';
 	import {
 		convertMessagesToHistory,
@@ -192,10 +193,25 @@
 			await tick();
 			let message = history.messages[event.message_id];
 
-			if (message) {
-				const type = event?.data?.type ?? null;
-				const data = event?.data?.data ?? null;
+			const type = event?.data?.type ?? null;
+			const data = event?.data?.data ?? null;
 
+			if (type === 'dsp_update') {
+				// Handle DSP state update
+				const hasDspEnabled = data?.has_dsp ?? false;
+				showDsp.set(hasDspEnabled);
+				
+				// Update local chat object if it exists
+				if (chat) {
+					chat.meta = {
+						...chat.meta,
+						has_dsp: hasDspEnabled
+					};
+				}
+				return;
+			}
+
+			if (message) {
 				if (type === 'status') {
 					if (message?.statusHistory) {
 						message.statusHistory.push(data);
@@ -386,67 +402,10 @@
 	});
 
 	const initNewChat = async () => {
-		if ($page.url.searchParams.get('models')) {
-			selectedModels = $page.url.searchParams.get('models')?.split(',') ?? [];
-		} else if ($page.url.searchParams.get('model')) {
-			const urlModels = $page.url.searchParams.get('model')?.split(',');
-
-			if (urlModels.length === 1) {
-				const m = $models.find((m) => m.id === urlModels[0]);
-				if (!m) {
-					const modelSelectorButton = document.getElementById('model-selector-0-button');
-					if (modelSelectorButton) {
-						modelSelectorButton.click();
-						await tick();
-
-						const modelSelectorInput = document.getElementById('model-search-input');
-						if (modelSelectorInput) {
-							modelSelectorInput.focus();
-							modelSelectorInput.value = urlModels[0];
-							modelSelectorInput.dispatchEvent(new Event('input'));
-						}
-					}
-				} else {
-					selectedModels = urlModels;
-				}
-			} else {
-				selectedModels = urlModels;
-			}
-		} else {
-			if (sessionStorage.selectedModels) {
-				selectedModels = JSON.parse(sessionStorage.selectedModels);
-				sessionStorage.removeItem('selectedModels');
-			} else {
-				if ($settings?.models) {
-					selectedModels = $settings?.models;
-				} else if ($config?.default_models) {
-					console.log($config?.default_models.split(',') ?? '');
-					selectedModels = $config?.default_models.split(',');
-				}
-			}
-		}
-
-		selectedModels = selectedModels.filter((modelId) => $models.map((m) => m.id).includes(modelId));
-		if (selectedModels.length === 0 || (selectedModels.length === 1 && selectedModels[0] === '')) {
-			if ($models.length > 0) {
-				selectedModels = [$models[0].id];
-			} else {
-				selectedModels = [''];
-			}
-		}
-
-		showControls.set(false);
-		showOverview.set(false);
-		showArtifacts.set(false);
-
-		if ($page.url.pathname.includes('/c/')) {
-			window.history.replaceState(history.state, '', `/`);
-		}
-
-		autoScroll = true;
-
+		// Reset chat state
 		chatId.set('');
 		chatTitle.set('');
+		showDsp.set(false); // Reset DSP state for new chat
 
 		history = {
 			messages: {},
@@ -517,6 +476,11 @@
 						: convertMessagesToHistory(chatContent.messages);
 
 				chatTitle.set(chatContent.title);
+
+				// Update showDsp based on chat meta, with a safe default
+				const hasDspEnabled = chat.meta?.has_dsp ?? false;
+				await tick(); // Ensure store is ready
+				showDsp.set(hasDspEnabled);
 
 				const userSettings = await getUserSettings(localStorage.token);
 
@@ -1355,15 +1319,21 @@
 	const saveChatHandler = async (_chatId) => {
 		if ($chatId == _chatId) {
 			if (!$temporaryChatEnabled) {
+				// Get current chat to preserve meta
+				const currentChat = await getChatById(localStorage.token, _chatId);
 				chat = await updateChatById(localStorage.token, _chatId, {
 					models: selectedModels,
 					history: history,
 					messages: createMessagesList(history.currentId),
-					params: params
+					params: params,
+					meta: currentChat?.meta || {} // Preserve meta field
 				});
 
 				currentChatPage.set(1);
 				chats.set(await getChatList(localStorage.token, $currentChatPage));
+				
+				// Update showDsp based on preserved meta
+				showDsp.set(chat?.meta?.has_dsp || false);
 			}
 		}
 	};
@@ -1400,16 +1370,12 @@
 
 {#if !chatIdProp || (loaded && chatIdProp)}
 	<div
-		class="h-screen max-h-[100dvh] {$showSidebar
-			? 'md:max-w-[calc(100%-260px)]'
-			: ''} w-full max-w-full flex flex-col"
+		class="h-screen max-h-[100dvh] w-full flex flex-col"
 		id="chat-container"
 	>
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
-				class="absolute {$showSidebar
-					? 'md:max-w-[calc(100%-260px)] md:translate-x-[260px]'
-					: ''} top-0 left-0 w-full h-full bg-cover bg-center bg-no-repeat"
+				class="absolute top-0 left-0 w-full h-full bg-cover bg-center bg-no-repeat"
 				style="background-image: url({$settings.backgroundImageUrl})  "
 			/>
 

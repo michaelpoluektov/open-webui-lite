@@ -23,67 +23,43 @@
 
 	export let className = '';
 
-	let folderElement;
+	let folderElement: HTMLDivElement;
 
 	let draggedOver = false;
 
-	const onDragOver = (e) => {
+	const onDragOver = (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 		draggedOver = true;
 	};
 
-	const onDrop = (e) => {
+	const onDrop = (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
+		draggedOver = false;
 
-		if (folderElement.contains(e.target)) {
-			console.log('Dropped on the Button');
+		if (!e.dataTransfer) return;
+		
+		const items = e.dataTransfer.items;
+		if (!items) return;
 
-			if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-				// Iterate over all items in the DataTransferItemList use functional programming
-				for (const item of Array.from(e.dataTransfer.items)) {
-					// If dropped items aren't files, reject them
-					if (item.kind === 'file') {
-						const file = item.getAsFile();
-						if (file && file.type === 'application/json') {
-							console.log('Dropped file is a JSON file!');
-
-							// Read the JSON file with FileReader
-							const reader = new FileReader();
-							reader.onload = async function (event) {
-								try {
-									const fileContent = JSON.parse(event.target.result);
-									console.log('Parsed JSON Content: ', fileContent);
-									open = true;
-									dispatch('import', fileContent);
-								} catch (error) {
-									console.error('Error parsing JSON file:', error);
-								}
-							};
-
-							// Start reading the file
-							reader.readAsText(file);
-						} else {
-							console.error('Only JSON file types are supported.');
-						}
-					} else {
-						open = true;
-
-						const dataTransfer = e.dataTransfer.getData('text/plain');
-						const data = JSON.parse(dataTransfer);
-
-						console.log(data);
-						dispatch('drop', data);
-					}
-				}
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item.kind === 'file') {
+				const file = item.getAsFile();
+				if (!file) continue;
+				
+				const reader = new FileReader();
+				reader.onload = (event) => {
+					if (!event.target?.result || typeof event.target.result !== 'string') return;
+					dispatch('drop', { content: event.target.result });
+				};
+				reader.readAsText(file);
 			}
-
-			draggedOver = false;
 		}
 	};
 
-	const onDragLeave = (e) => {
+	const onDragLeave = (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -100,10 +76,10 @@
 	});
 
 	onDestroy(() => {
-		if (!dragAndDrop) {
+		if (!dragAndDrop || !folderElement) {
 			return;
 		}
-		folderElement.addEventListener('dragover', onDragOver);
+		folderElement.removeEventListener('dragover', onDragOver);
 		folderElement.removeEventListener('drop', onDrop);
 		folderElement.removeEventListener('dragleave', onDragLeave);
 	});

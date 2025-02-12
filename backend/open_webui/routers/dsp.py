@@ -6,17 +6,22 @@ import logging
 import traceback
 import wave
 import zipfile
+import tempfile
+import shutil
 from typing import Optional, TypedDict
+from pathlib import Path
 
 import audio_dsp.stages
 import numpy as np
 from audio_dsp.design.parse_json import DspJson, Graph, insert_forks, make_pipeline
-from audio_dsp.design.pipeline import Pipeline
+from audio_dsp.design.pipeline import Pipeline, generate_dsp_main
 from audio_dsp.models.stage import all_models
 from fastapi import APIRouter, Depends, File, Query, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from open_webui.utils.auth import get_verified_user
 from open_webui.models.dsp_sessions import DspSessions, DspSessionModel
+from open_webui.models.chats import Chats
+from open_webui.socket.main import get_event_emitter
 
 log = logging.getLogger(__name__)
 
@@ -36,13 +41,13 @@ def notify_graph_update(session_id: str, user_id: str):
 
 
 @router.get("/schema/graph")
-def get_dsp_json_schema(_=Depends(get_verified_user)):
+async def get_dsp_json_schema(_=Depends(get_verified_user)):
     schema = copy.deepcopy(Graph.model_json_schema())
     return JSONResponse(schema)
 
 
 @router.get("/schema/params")
-def get_params_schema(_=Depends(get_verified_user)):
+async def get_params_schema(_=Depends(get_verified_user)):
     params = {
         k: n.model_fields["parameters"].annotation.model_json_schema()
         for k, n in all_models().items()
@@ -55,16 +60,33 @@ def get_params_schema(_=Depends(get_verified_user)):
 
 
 @router.post("/session/{session_id}")
-def create_session(session_id: str, user=Depends(get_verified_user)) -> DspSessionModel:
+async def create_session(
+    session_id: str, user=Depends(get_verified_user)
+) -> DspSessionModel:
     """Create a new DSP session."""
+    # First check if this chat exists
+    chat = Chats.get_chat_by_id(session_id)
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    # Enable DSP for this chat
+    Chats.set_chat_dsp_by_id(session_id, True)
+
     if DspSessions.get_session(session_id, user.id):
         raise HTTPException(status_code=409, detail="Session already exists")
+    
     return DspSessions.create_session(session_id, user.id)
 
 
 @router.get("/session/{session_id}")
-def get_session(session_id: str, user=Depends(get_verified_user)) -> DspSessionModel:
+async def get_session(
+    session_id: str, user=Depends(get_verified_user)
+) -> DspSessionModel:
     """Get a DSP session by ID."""
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
     session = DspSessions.get_session(session_id, user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -72,21 +94,31 @@ def get_session(session_id: str, user=Depends(get_verified_user)) -> DspSessionM
 
 
 @router.get("/sessions")
-def list_sessions(user=Depends(get_verified_user)) -> list[DspSessionModel]:
+async def list_sessions(user=Depends(get_verified_user)) -> list[DspSessionModel]:
     """List all DSP sessions for the current user."""
     return DspSessions.get_user_sessions(user.id)
 
 
 @router.delete("/session/{session_id}")
-def delete_session(session_id: str, user=Depends(get_verified_user)):
+async def delete_session(session_id: str, user=Depends(get_verified_user)):
     """Delete a DSP session."""
     if not DspSessions.delete_session(session_id, user.id):
         raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Disable DSP for this chat
+    Chats.set_chat_dsp_by_id(session_id, False)
+    
     return {"message": "Session deleted"}
 
 
 @router.post("/graph/params")
-def set_parameters(params: dict, session_id: str, user=Depends(get_verified_user)):
+async def set_parameters(
+    params: dict, session_id: str, user=Depends(get_verified_user)
+):
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
     session = DspSessions.get_session(session_id, user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -168,6 +200,10 @@ async def run_audio(
     files: list[UploadFile] = File(...),
     user=Depends(get_verified_user),
 ):
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
     session = DspSessions.get_session(session_id, user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -250,7 +286,11 @@ async def run_audio(
 
 
 @router.post("/graph")
-def set_graph(graph: Graph, session_id: str, user=Depends(get_verified_user)):
+async def set_graph(graph: Graph, session_id: str, user=Depends(get_verified_user)):
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
     try:
         forked_graph = insert_forks(graph)
 
@@ -268,14 +308,25 @@ def set_graph(graph: Graph, session_id: str, user=Depends(get_verified_user)):
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        notify_graph_update(session_id, user.id)
+        # Emit chat event to update DSP state
+        event_emitter = get_event_emitter({
+            "user_id": user.id,
+            "chat_id": session_id,
+            "message_id": "dsp_update",
+            "session_id": None
+        })
+        await event_emitter({
+            "type": "dsp_update",
+            "data": {
+                "has_dsp": True,
+                "graph": graph.model_dump()
+            }
+        })
 
-        schema_dict = {
-            node.placement.name: node.parameters.__class__.model_json_schema()
-            for node in forked_graph.nodes
-            if hasattr(node, "parameters")
-        }
-        return schema_dict
+        notify_graph_update(session_id, user.id)
+        return JSONResponse(
+            content={"message": "Graph successfully set."}, status_code=200
+        )
     except Exception as e:
         return JSONResponse(
             content={"error": str(e), "traceback": traceback.format_exc()},
@@ -284,7 +335,11 @@ def set_graph(graph: Graph, session_id: str, user=Depends(get_verified_user)):
 
 
 @router.get("/graph")
-def get_graph(session_id: str, user=Depends(get_verified_user)):
+async def get_graph(session_id: str, user=Depends(get_verified_user)):
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
     session = DspSessions.get_session(session_id, user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -293,6 +348,10 @@ def get_graph(session_id: str, user=Depends(get_verified_user)):
 
 @router.get("/graph-updates")
 async def graph_updates(session_id: str, user=Depends(get_verified_user)):
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
     # Verify session exists and belongs to user
     session = DspSessions.get_session(session_id, user.id)
     if not session:
@@ -313,3 +372,55 @@ async def graph_updates(session_id: str, user=Depends(get_verified_user)):
             raise
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/graph/source")
+async def get_pipeline_source(session_id: str, user=Depends(get_verified_user)):
+    """Generate and download the C source files for the DSP pipeline."""
+    # First check if this chat exists and has DSP enabled
+    if not Chats.has_dsp(session_id):
+        raise HTTPException(status_code=403, detail="DSP not enabled for this chat")
+
+    session = DspSessions.get_session(session_id, user.id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    graph = Graph.model_validate(session.graph)
+    
+    try:
+        # Create pipeline from graph
+        pipeline = make_pipeline(
+            DspJson(ir_version=1, producer_name="dsp_builder", producer_version="0.1", graph=graph)
+        )
+
+        # Format filename from graph name
+        filename = graph.name.lower().replace(" ", "_")
+        
+        # Create temporary directory for source files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Generate source files
+            generate_dsp_main(pipeline, out_dir=temp_dir)
+            
+            # Create zip file in memory
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                # Add all generated files from temp directory
+                for file_path in Path(temp_dir).glob("*"):
+                    zip_file.write(file_path, file_path.name)
+            
+            zip_buffer.seek(0)
+            
+            return StreamingResponse(
+                zip_buffer,
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": f"attachment; filename={filename}.zip"
+                }
+            )
+            
+    except Exception as e:
+        log.error(f"Failed to generate pipeline source: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate pipeline source: {str(e)}"
+        )
