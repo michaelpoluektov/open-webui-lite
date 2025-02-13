@@ -64,4 +64,5 @@ with engine.connect() as conn:
 )
 
 # Execute the original start script
-exec start.sh 
+cd "$SCRIPT_DIR"
+exec ./start.sh 
