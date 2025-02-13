@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR" || exit
 
 # Run database migrations
 echo "Running database migrations..."
-PYTHONPATH=$SCRIPT_DIR alembic -c open_webui/alembic.ini upgrade head
+cd open_webui && PYTHONPATH=/app/backend alembic upgrade head && cd ..
 
 # Execute the original start script
 exec ./start.sh 
