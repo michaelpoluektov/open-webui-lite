@@ -7,7 +7,11 @@ cd "$SCRIPT_DIR" || exit
 
 # Run database migrations
 echo "Running database migrations..."
-cd open_webui && PYTHONPATH=/app/backend alembic upgrade head && cd ..
+(
+    cd open_webui
+    PYTHONPATH=/app/backend alembic stamp head  # Mark the current version as head
+    PYTHONPATH=/app/backend alembic upgrade head # Then try to upgrade
+)
 
 # Execute the original start script
-exec ./start.sh 
+exec "$SCRIPT_DIR/start.sh" 
