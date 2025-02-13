@@ -1,7 +1,7 @@
 """Add DSP sessions table
 
 Revision ID: dsp_sessions_001
-Revises: 7826ab40b532
+Revises: 3781e22d8b01
 Create Date: 2024-03-19 00:00:00.000000
 
 """
@@ -14,7 +14,7 @@ from open_webui.migrations.util import get_existing_tables
 
 # revision identifiers, used by Alembic.
 revision: str = "dsp_sessions_001"
-down_revision: Union[str, None] = "7826ab40b532"
+down_revision: Union[str, None] = "3781e22d8b01"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
