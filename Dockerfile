@@ -8,17 +8,17 @@ ARG UID=0
 ARG GID=0
 
 ######## DSP frontend ########
-FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS dsp-build
+FROM --platform=$BUILDPLATFORM oven/bun:1 AS dsp-build
 ARG BUILD_HASH
 
 WORKDIR /app
 
-COPY dsp-frontend/package.json dsp-frontend/package-lock.json ./
-RUN npm ci
+COPY dsp-frontend/package.json dsp-frontend/bun.lock ./
+RUN bun install
 
 COPY dsp-frontend/ .
 ENV APP_BUILD_HASH=${BUILD_HASH}
-RUN npm run build
+RUN bun run build
 
 ######## WebUI frontend ########
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
