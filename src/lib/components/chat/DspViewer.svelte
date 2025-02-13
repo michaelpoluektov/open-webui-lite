@@ -12,37 +12,47 @@
 	let iframeSrc = '';
 	let hasDsp = false;
 	let currentChatId = '';
+	let isUpdating = false;
 
 	async function updateDspState(id: string) {
-		if (!id || id === 'local') {
-			hasDsp = false;
-			showDsp.set(false);
-			iframeSrc = '';
-			return;
-		}
+		if (isUpdating) return;
+		isUpdating = true;
 
 		try {
+			if (!id || id === 'local') {
+				hasDsp = false;
+				iframeSrc = '';
+				showDsp.set(false);
+				return;
+			}
+
 			const chat = await getChatById(localStorage.token, id);
-			hasDsp = chat?.meta?.has_dsp || false;
-			showDsp.set(hasDsp);
+			const newHasDsp = chat?.meta?.has_dsp || false;
 			
+			hasDsp = newHasDsp;
 			if (hasDsp) {
-				iframeSrc = `${WEBUI_BASE_URL}/dsp/?session_id=${id}`;
+				// Force iframe refresh by adding timestamp
+				iframeSrc = `${WEBUI_BASE_URL}/dsp/?session_id=${id}&_t=${Date.now()}`;
 			} else {
 				iframeSrc = '';
 			}
+			showDsp.set(hasDsp);
 		} catch (error) {
 			console.error('Failed to check DSP status:', error);
 			hasDsp = false;
-			showDsp.set(false);
 			iframeSrc = '';
+			showDsp.set(false);
+		} finally {
+			isUpdating = false;
 		}
 	}
 
-	// Watch for chat ID changes
-	$: if ($chatId !== currentChatId) {
-		currentChatId = $chatId;
-		updateDspState($chatId);
+	// Watch for chat ID changes and force update
+	$: {
+		if ($chatId !== currentChatId) {
+			currentChatId = $chatId;
+			updateDspState($chatId);
+		}
 	}
 
 	function setupIframeListeners() {
@@ -54,12 +64,17 @@
 	}
 
 	onMount(() => {
-		// Check initial state
-		updateDspState($chatId);
+		// Initial state check
+		if ($chatId) {
+			currentChatId = $chatId;
+			updateDspState($chatId);
+		}
 	});
 
 	onDestroy(() => {
 		showDsp.set(false);
+		iframeSrc = '';
+		hasDsp = false;
 	});
 </script>
 

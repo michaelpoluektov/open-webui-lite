@@ -1,7 +1,6 @@
 <script lang="ts">
-	import fileSaver from 'file-saver';
 	import { deleteDB, openDB } from 'idb';
-	import { getContext, onMount, tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Pane, PaneResizer, PaneGroup } from 'paneforge';
 
 	import { goto } from '$app/navigation';
@@ -28,9 +27,6 @@
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import DspViewer from '$lib/components/chat/DspViewer.svelte';
 	import EllipsisVertical from '$lib/components/icons/EllipsisVertical.svelte';
-
-	const { saveAs } = fileSaver;
-	const i18n = getContext('i18n');
 
 	let loaded = false;
 	let DB = null;
@@ -86,9 +82,6 @@
 			models.set(modelsData);
 			banners.set(bannersData);
 			tools.set(toolsData);
-
-			// Set showDsp to true by default
-			showDsp.set(true);
 
 			document.addEventListener('keydown', async function (event) {
 				const isCtrlPressed = event.ctrlKey || event.metaKey; // metaKey is for Cmd key on Mac
@@ -193,33 +186,26 @@
 				<AccountPending />
 			{/if}
 
-			{#if $showDsp}
-				<div class="flex w-full">
-					<Sidebar />
-					<PaneGroup direction="horizontal" class="flex flex-1">
-						<Pane minSize={20} defaultSize={40} class="flex-1">
-							<div class="flex-1 min-w-0">
-								<slot />
-							</div>
-						</Pane>
+			<div class="flex w-full">
+				<Sidebar />
+				<PaneGroup direction="horizontal" class="flex flex-1">
+					<Pane minSize={20} defaultSize={$showDsp ? 40 : 100} class="flex-1">
+						<div class="flex-1 min-w-0">
+							<slot />
+						</div>
+					</Pane>
+					{#if $showDsp}
 						<PaneResizer class="relative flex w-2 items-center justify-center bg-background group">
 							<div class="z-10 flex h-7 w-5 items-center justify-center rounded-sm">
 								<EllipsisVertical className="size-4 invisible group-hover:visible" />
 							</div>
 						</PaneResizer>
-						<Pane minSize={20} defaultSize={50} class="border-l dark:border-gray-800">
+						<Pane minSize={30} defaultSize={100} class="border-l dark:border-gray-800">
 							<DspViewer />
 						</Pane>
-					</PaneGroup>
-				</div>
-			{:else}
-				<div class="flex w-full">
-					<Sidebar />
-					<div class="flex-1 min-w-0">
-						<slot />
-					</div>
-				</div>
-			{/if}
+					{/if}
+				</PaneGroup>
+			</div>
 		{/if}
 	</div>
 </div>

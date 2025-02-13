@@ -14,6 +14,11 @@
 	import Commands from './MessageInput/Commands.svelte';
 	import InputMenu from './MessageInput/InputMenu.svelte';
 
+	import type { Tool } from '$lib/types/tool';
+	import type { Settings } from '$lib/types/settings';
+	import type { Model } from '$lib/types/model';
+	import type { SvelteComponent } from 'svelte';
+
 	const i18n = getContext('i18n');
 
 	export let transparentBackground = false;
@@ -25,16 +30,13 @@
 	export let autoScroll = false;
 
 	export let atSelectedModel: Model | undefined = undefined;
-	export let selectedModels: [''];
-
-	let selectedModelIds = [];
-	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
+	export let selectedModels: string[] = [''];
 
 	export let history;
 
 	export let prompt = '';
 
-	export let selectedToolIds = [];
+	export let selectedToolIds: string[] = [];
 
 	$: onChange({
 		prompt,
@@ -43,32 +45,47 @@
 
 	let loaded = false;
 
-	let chatInputElement;
+	let chatInputElement: HTMLElement;
 
-	let commandsElement;
+	let commandsElement: SvelteComponent;
 
 	let dragged = false;
 
 	export let placeholder = '';
 
 	let visionCapableModels = [];
-	$: visionCapableModels = [...(atSelectedModel ? [atSelectedModel] : selectedModels)].filter(
-		(model) => $models.find((m) => m.id === model)?.info?.meta?.capabilities?.vision ?? true
+	$: visionCapableModels = [...(atSelectedModel ? [atSelectedModel.id] : selectedModels)].filter(
+		(modelId) => ($models.find((m: Model) => m.id === modelId)?.info?.meta as any)?.capabilities?.vision ?? true
 	);
 
 	const scrollToBottom = () => {
 		const element = document.getElementById('messages-container');
-		element.scrollTo({
-			top: element.scrollHeight,
-			behavior: 'smooth'
-		});
+		if (element) {
+			element.scrollTo({
+				top: element.scrollHeight,
+				behavior: 'smooth'
+			});
+		}
 	};
 
 	const handleKeyDown = (event: KeyboardEvent) => {
 		if (event.key === 'Escape') {
-			console.log('Escape');
 			dragged = false;
 		}
+	};
+
+	const handleDragStart = (event: CustomEvent<any>) => {
+		if (event.detail?.ctrlKey) {
+			dragged = true;
+		}
+	};
+
+	const isTouchDevice = () => {
+		return (
+			typeof window !== 'undefined' &&
+			('ontouchstart' in window ||
+				navigator.maxTouchPoints > 0)
+		);
 	};
 
 	onMount(async () => {
@@ -85,7 +102,6 @@
 	});
 
 	onDestroy(() => {
-		console.log('destroy');
 		window.removeEventListener('keydown', handleKeyDown);
 	});
 </script>
@@ -94,7 +110,7 @@
 	<div class="w-full font-primary">
 		<div class=" mx-auto inset-x-0 bg-transparent flex justify-center">
 			<div
-				class="flex flex-col px-3 {($settings?.widescreenMode ?? null)
+				class="flex flex-col px-3 {$settings?.widescreenMode
 					? 'max-w-full'
 					: 'max-w-6xl'} w-full"
 			>
@@ -144,9 +160,9 @@
 											</span>
 										</div>
 										<div class=" translate-y-[0.5px] text-ellipsis line-clamp-1 flex">
-											{#each selectedToolIds.map((id) => {
-												return $tools ? $tools.find((t) => t.id === id) : { id: id, name: id };
-											}) as tool, toolIdx (toolIdx)}
+											{#each selectedToolIds.map((id) => 
+												$tools ? ($tools.find((t) => t.id === id) ?? { id, name: id }) : { id, name: id }
+											) as tool, toolIdx (toolIdx)}
 												<Tooltip
 													content={tool?.meta?.description ?? ''}
 													className=" {toolIdx !== 0 ? 'pl-0.5' : ''} flex-shrink-0"
@@ -216,7 +232,7 @@
 
 		<div class="{transparentBackground ? 'bg-transparent' : 'bg-white dark:bg-gray-900'} ">
 			<div
-				class="{($settings?.widescreenMode ?? null)
+				class="{$settings?.widescreenMode
 					? 'max-w-full'
 					: 'max-w-6xl'} px-2.5 mx-auto inset-x-0"
 			>

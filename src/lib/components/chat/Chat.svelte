@@ -27,7 +27,6 @@
 		showArtifacts,
 		showControls,
 		showOverview,
-		showSidebar,
 		socket,
 		temporaryChatEnabled,
 		tools,
@@ -56,14 +55,22 @@
 	import EventConfirmDialog from '../common/ConfirmDialog.svelte';
 	import ChatControls from './ChatControls.svelte';
 	import Placeholder from './Placeholder.svelte';
-	import Tooltip from '../common/Tooltip.svelte';
+
+	import type { ControlPane } from '$lib/types/controlPane';
+	import type { Chat, ChatHistory, PreservedHistory } from '$lib/types/chat';
 
 	export let chatIdProp = '';
 
 	let loaded = false;
 	const eventTarget = new EventTarget();
-	let controlPane;
-	let controlPaneComponent;
+	let controlPane: ControlPane | null = null;
+	let controlPaneComponent: any = null; // This is a Svelte component type
+	let eventCallback: ((event: any) => void) | null = null;
+	let selectedToolIds: string[] = [];
+	let chat: Chat | null = null;
+	let taskId: string | null = null;
+	let preservedHistory: PreservedHistory | null = null;
+	let chatIdUnsubscriber: Unsubscriber | undefined;
 
 	let autoScroll = true;
 	let messagesContainerElement: HTMLDivElement;
@@ -74,35 +81,24 @@
 	let eventConfirmationInput = false;
 	let eventConfirmationInputPlaceholder = '';
 	let eventConfirmationInputValue = '';
-	let eventCallback = null;
 	let navbarElement;
-
-	let chatIdUnsubscriber: Unsubscriber | undefined;
 
 	let selectedModels = [''];
 	let atSelectedModel: Model | undefined;
 	let selectedModelIds = [];
 	$: selectedModelIds = atSelectedModel !== undefined ? [atSelectedModel.id] : selectedModels;
 
-	let selectedToolIds = [];
-
-	let chat = null;
-
-	let history = {
-		messages: {},
-		currentId: null
-	};
-
-	let taskId = null;
-
 	// Chat Input
 	let prompt = '';
 	let params = {};
 
+	let history: ChatHistory = {
+		messages: {},
+		currentId: null
+	};
+
 	$: if (chatIdProp) {
 		(async () => {
-			console.log(chatIdProp);
-
 			prompt = '';
 			selectedToolIds = [];
 
@@ -112,10 +108,14 @@
 				await tick();
 				loaded = true;
 
+				if (preservedHistory && preservedHistory.chatId === chatIdProp) {
+					history = preservedHistory.history;
+					preservedHistory = null;
+				}
+
 				if (localStorage.getItem(`chat-input-${chatIdProp}`)) {
 					try {
-						const input = JSON.parse(localStorage.getItem(`chat-input-${chatIdProp}`));
-
+						const input = JSON.parse(localStorage.getItem(`chat-input-${chatIdProp}`) || '{}');
 						prompt = input.prompt;
 						selectedToolIds = input.selectedToolIds;
 					} catch (e) {}
@@ -139,7 +139,6 @@
 			return;
 		}
 		sessionStorage.selectedModels = JSON.stringify(selectedModels);
-		console.log('saveSessionSelectedModels', selectedModels, sessionStorage.selectedModels);
 	};
 
 	$: if (selectedModels) {
@@ -187,120 +186,105 @@
 	};
 
 	const chatEventHandler = async (event, cb) => {
-		console.log(event);
+		if (event.chat_id !== $chatId) return;
 
-		if (event.chat_id === $chatId) {
-			await tick();
-			let message = history.messages[event.message_id];
+		const type = event?.data?.type ?? null;
+		const data = event?.data?.data ?? null;
 
-			const type = event?.data?.type ?? null;
-			const data = event?.data?.data ?? null;
+		// Process message-related events
+		const message = history.messages[event.message_id];
+		if (!message) return;
 
-			if (type === 'dsp_update') {
-				// Handle DSP state update
-				const hasDspEnabled = data?.has_dsp ?? false;
-				showDsp.set(hasDspEnabled);
-				
-				// Update local chat object if it exists
-				if (chat) {
-					chat.meta = {
-						...chat.meta,
-						has_dsp: hasDspEnabled
-					};
-				}
-				return;
+		if (type === 'status') {
+			if (message?.statusHistory) {
+				message.statusHistory.push(data);
+			} else {
+				message.statusHistory = [data];
 			}
+		} else if (type === 'source' || type === 'citation') {
+			if (data?.type === 'code_execution') {
+				// Code execution; update existing code execution by ID, or add new one.
+				if (!message?.code_executions) {
+					message.code_executions = [];
+				}
 
-			if (message) {
-				if (type === 'status') {
-					if (message?.statusHistory) {
-						message.statusHistory.push(data);
-					} else {
-						message.statusHistory = [data];
-					}
-				} else if (type === 'source' || type === 'citation') {
-					if (data?.type === 'code_execution') {
-						// Code execution; update existing code execution by ID, or add new one.
-						if (!message?.code_executions) {
-							message.code_executions = [];
-						}
+				const existingCodeExecutionIndex = message.code_executions.findIndex(
+					(execution) => execution.id === data.id
+				);
 
-						const existingCodeExecutionIndex = message.code_executions.findIndex(
-							(execution) => execution.id === data.id
-						);
-
-						if (existingCodeExecutionIndex !== -1) {
-							message.code_executions[existingCodeExecutionIndex] = data;
-						} else {
-							message.code_executions.push(data);
-						}
-
-						message.code_executions = message.code_executions;
-					} else {
-						// Regular source.
-						if (message?.sources) {
-							message.sources.push(data);
-						} else {
-							message.sources = [data];
-						}
-					}
-				} else if (type === 'chat:completion') {
-					chatCompletionEventHandler(data, message, event.chat_id);
-				} else if (type === 'chat:title') {
-					chatTitle.set(data);
-					currentChatPage.set(1);
-					chats.set(await getChatList(localStorage.token, $currentChatPage));
-				} else if (type === 'message') {
-					message.content += data.content;
-				} else if (type === 'replace') {
-					message.content = data.content;
-				} else if (type === 'action') {
-					if (data.action === 'continue') {
-						const continueButton = document.getElementById('continue-response-button');
-
-						if (continueButton) {
-							continueButton.click();
-						}
-					}
-				} else if (type === 'confirmation') {
-					eventCallback = cb;
-
-					eventConfirmationInput = false;
-					showEventConfirmation = true;
-
-					eventConfirmationTitle = data.title;
-					eventConfirmationMessage = data.message;
-				} else if (type === 'execute') {
-					eventCallback = cb;
-
-					try {
-						// Use Function constructor to evaluate code in a safer way
-						const asyncFunction = new Function(`return (async () => { ${data.code} })()`);
-						const result = await asyncFunction(); // Await the result of the async function
-
-						if (cb) {
-							cb(result);
-						}
-					} catch (error) {
-						console.error('Error executing code:', error);
-					}
-				} else if (type === 'input') {
-					eventCallback = cb;
-
-					eventConfirmationInput = true;
-					showEventConfirmation = true;
-
-					eventConfirmationTitle = data.title;
-					eventConfirmationMessage = data.message;
-					eventConfirmationInputPlaceholder = data.placeholder;
-					eventConfirmationInputValue = data?.value ?? '';
+				if (existingCodeExecutionIndex !== -1) {
+					message.code_executions[existingCodeExecutionIndex] = data;
 				} else {
-					console.log('Unknown message type', data);
+					message.code_executions.push(data);
 				}
 
-				history.messages[event.message_id] = message;
+				message.code_executions = message.code_executions;
+			} else {
+				// Regular source.
+				if (message?.sources) {
+					message.sources.push(data);
+				} else {
+					message.sources = [data];
+				}
 			}
+		} else if (type === 'chat:completion') {
+			chatCompletionEventHandler(data, message, event.chat_id);
+		} else if (type === 'chat:title') {
+			chatTitle.set(data);
+			currentChatPage.set(1);
+			chats.set(await getChatList(localStorage.token, $currentChatPage));
+		} else if (type === 'message') {
+			message.content += data.content;
+		} else if (type === 'replace') {
+			message.content = data.content;
+		} else if (type === 'action') {
+			if (data.action === 'continue') {
+				const continueButton = document.getElementById('continue-response-button');
+
+				if (continueButton) {
+					continueButton.click();
+				}
+			}
+		} else if (type === 'confirmation') {
+			eventCallback = cb;
+
+			eventConfirmationInput = false;
+			showEventConfirmation = true;
+
+			eventConfirmationTitle = data.title;
+			eventConfirmationMessage = data.message;
+		} else if (type === 'execute') {
+			eventCallback = cb;
+
+			try {
+				// Use Function constructor to evaluate code in a safer way
+				const asyncFunction = new Function(`return (async () => { ${data.code} })()`);
+				const result = await asyncFunction(); // Await the result of the async function
+
+				if (cb) {
+					cb(result);
+				}
+			} catch (error) {
+				console.error('Error executing code:', error);
+			}
+		} else if (type === 'input') {
+			eventCallback = cb;
+
+			eventConfirmationInput = true;
+			showEventConfirmation = true;
+
+			eventConfirmationTitle = data.title;
+			eventConfirmationMessage = data.message;
+			eventConfirmationInputPlaceholder = data.placeholder;
+			eventConfirmationInputValue = data?.value ?? '';
+		} else if (type === 'dsp_update') {
+			const hasDspEnabled = data?.has_dsp ?? false;
+			showDsp.set(hasDspEnabled);
+		} else {
+			console.log('Unknown message type:', type);
 		}
+
+		history.messages[event.message_id] = message;
 	};
 
 	const onMessageHandler = async (event: {
@@ -313,8 +297,6 @@
 
 		// Replace with your iframe's origin
 		if (event.data.type === 'input:prompt') {
-			console.debug(event.data.text);
-
 			const inputElement = document.getElementById('chat-input');
 
 			if (inputElement) {
@@ -324,8 +306,6 @@
 		}
 
 		if (event.data.type === 'action:submit') {
-			console.debug(event.data.text);
-
 			if (prompt !== '') {
 				await tick();
 				submitPrompt(prompt);
@@ -333,8 +313,6 @@
 		}
 
 		if (event.data.type === 'input:prompt:submit') {
-			console.debug(event.data.text);
-
 			if (prompt !== '') {
 				await tick();
 				submitPrompt(event.data.text);
@@ -343,7 +321,6 @@
 	};
 
 	onMount(async () => {
-		console.log('mounted');
 		window.addEventListener('message', onMessageHandler);
 		$socket?.on('chat-events', chatEventHandler);
 
@@ -361,13 +338,10 @@
 
 		if (localStorage.getItem(`chat-input-${chatIdProp}`)) {
 			try {
-				const input = JSON.parse(localStorage.getItem(`chat-input-${chatIdProp}`));
+				const input = JSON.parse(localStorage.getItem(`chat-input-${chatIdProp}`) || '{}');
 				prompt = input.prompt;
 				selectedToolIds = input.selectedToolIds;
-			} catch (e) {
-				prompt = '';
-				selectedToolIds = [];
-			}
+			} catch (e) {}
 		}
 
 		showControls.subscribe(async (value) => {
@@ -402,10 +376,9 @@
 	});
 
 	const initNewChat = async () => {
-		// Reset chat state
+		// Reset all chat state
 		chatId.set('');
 		chatTitle.set('');
-		showDsp.set(false); // Reset DSP state for new chat
 
 		history = {
 			messages: {},
@@ -462,10 +435,7 @@
 
 		if (chat) {
 			const chatContent = chat.chat;
-
 			if (chatContent) {
-				console.log(chatContent);
-
 				selectedModels =
 					(chatContent?.models ?? undefined) !== undefined
 						? chatContent.models
@@ -477,9 +447,8 @@
 
 				chatTitle.set(chatContent.title);
 
-				// Update showDsp based on chat meta, with a safe default
+				// Update DSP state from chat meta
 				const hasDspEnabled = chat.meta?.has_dsp ?? false;
-				await tick(); // Ensure store is ready
 				showDsp.set(hasDspEnabled);
 
 				const userSettings = await getUserSettings(localStorage.token);
@@ -1294,6 +1263,11 @@
 
 	const initChatHandler = async () => {
 		if (!$temporaryChatEnabled) {
+			preservedHistory = {
+				chatId: $chatId,
+				history: history
+			};
+
 			chat = await createNewChat(localStorage.token, {
 				id: $chatId,
 				title: $i18n.t('New Chat'),
@@ -1317,25 +1291,21 @@
 	};
 
 	const saveChatHandler = async (_chatId) => {
-		if ($chatId == _chatId) {
-			if (!$temporaryChatEnabled) {
-				// Get current chat to preserve meta
-				const currentChat = await getChatById(localStorage.token, _chatId);
-				chat = await updateChatById(localStorage.token, _chatId, {
-					models: selectedModels,
-					history: history,
-					messages: createMessagesList(history.currentId),
-					params: params,
-					meta: currentChat?.meta || {} // Preserve meta field
-				});
+		if ($chatId != _chatId) return;
+		if ($temporaryChatEnabled) return;
+		const currentChat = await getChatById(localStorage.token, _chatId);
+		chat = await updateChatById(localStorage.token, _chatId, {
+			models: selectedModels,
+			history: history,
+			messages: createMessagesList(history.currentId),
+			params: params,
+			meta: currentChat?.meta || {} // Preserve meta field
+		});
 
-				currentChatPage.set(1);
-				chats.set(await getChatList(localStorage.token, $currentChatPage));
-				
-				// Update showDsp based on preserved meta
-				showDsp.set(chat?.meta?.has_dsp || false);
-			}
-		}
+		currentChatPage.set(1);
+		chats.set(await getChatList(localStorage.token, $currentChatPage));
+		console.log('Show DSP:', chat?.meta?.has_dsp || false);
+		showDsp.set(chat?.meta?.has_dsp || false);
 	};
 </script>
 
@@ -1369,10 +1339,7 @@
 />
 
 {#if !chatIdProp || (loaded && chatIdProp)}
-	<div
-		class="h-screen max-h-[100dvh] w-full flex flex-col"
-		id="chat-container"
-	>
+	<div class="h-screen max-h-[100dvh] w-full flex flex-col" id="chat-container">
 		{#if $settings?.backgroundImageUrl ?? null}
 			<div
 				class="absolute top-0 left-0 w-full h-full bg-cover bg-center bg-no-repeat"

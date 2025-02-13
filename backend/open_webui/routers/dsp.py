@@ -74,7 +74,7 @@ async def create_session(
 
     if DspSessions.get_session(session_id, user.id):
         raise HTTPException(status_code=409, detail="Session already exists")
-    
+
     return DspSessions.create_session(session_id, user.id)
 
 
@@ -104,10 +104,10 @@ async def delete_session(session_id: str, user=Depends(get_verified_user)):
     """Delete a DSP session."""
     if not DspSessions.delete_session(session_id, user.id):
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     # Disable DSP for this chat
     Chats.set_chat_dsp_by_id(session_id, False)
-    
+
     return {"message": "Session deleted"}
 
 
@@ -309,20 +309,6 @@ async def set_graph(graph: Graph, session_id: str, user=Depends(get_verified_use
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Emit chat event to update DSP state
-        event_emitter = get_event_emitter({
-            "user_id": user.id,
-            "chat_id": session_id,
-            "message_id": "dsp_update",
-            "session_id": None
-        })
-        await event_emitter({
-            "type": "dsp_update",
-            "data": {
-                "has_dsp": True,
-                "graph": graph.model_dump()
-            }
-        })
-
         notify_graph_update(session_id, user.id)
         return JSONResponse(
             content={"message": "Graph successfully set."}, status_code=200
@@ -386,41 +372,43 @@ async def get_pipeline_source(session_id: str, user=Depends(get_verified_user)):
         raise HTTPException(status_code=404, detail="Session not found")
 
     graph = Graph.model_validate(session.graph)
-    
+
     try:
         # Create pipeline from graph
         pipeline = make_pipeline(
-            DspJson(ir_version=1, producer_name="dsp_builder", producer_version="0.1", graph=graph)
+            DspJson(
+                ir_version=1,
+                producer_name="dsp_builder",
+                producer_version="0.1",
+                graph=graph,
+            )
         )
 
         # Format filename from graph name
         filename = graph.name.lower().replace(" ", "_")
-        
+
         # Create temporary directory for source files
         with tempfile.TemporaryDirectory() as temp_dir:
             # Generate source files
             generate_dsp_main(pipeline, out_dir=temp_dir)
-            
+
             # Create zip file in memory
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 # Add all generated files from temp directory
                 for file_path in Path(temp_dir).glob("*"):
                     zip_file.write(file_path, file_path.name)
-            
+
             zip_buffer.seek(0)
-            
+
             return StreamingResponse(
                 zip_buffer,
                 media_type="application/zip",
-                headers={
-                    "Content-Disposition": f"attachment; filename={filename}.zip"
-                }
+                headers={"Content-Disposition": f"attachment; filename={filename}.zip"},
             )
-            
+
     except Exception as e:
         log.error(f"Failed to generate pipeline source: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate pipeline source: {str(e)}"
+            status_code=500, detail=f"Failed to generate pipeline source: {str(e)}"
         )
