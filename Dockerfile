@@ -11,12 +11,12 @@ ARG GID=0
 FROM --platform=$BUILDPLATFORM oven/bun:1 AS dsp-build
 ARG BUILD_HASH
 
-WORKDIR /app
+WORKDIR /app/dsp-frontend
 
 COPY dsp-frontend/package.json dsp-frontend/bun.lock ./
-RUN bun install
+RUN bun install --frozen-lockfile
 
-COPY dsp-frontend/ .
+COPY dsp-frontend .
 ENV APP_BUILD_HASH=${BUILD_HASH}
 RUN bun run build
 
