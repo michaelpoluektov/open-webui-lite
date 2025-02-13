@@ -95,7 +95,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt && \
 
 # copy built frontend files
 COPY --chown=$UID:$GID --from=build /app/build /app/build
-COPY --chown=$UID:$GID --from=dsp-build /app/out /app/dsp-frontend/out
+COPY --chown=$UID:$GID --from=dsp-build /app/dsp-frontend/out /app/dsp-frontend/out
 COPY --chown=$UID:$GID --from=build /app/CHANGELOG.md /app/CHANGELOG.md
 COPY --chown=$UID:$GID --from=build /app/package.json /app/package.json
 
