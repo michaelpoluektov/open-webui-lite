@@ -14,11 +14,11 @@ ARG BUILD_HASH
 WORKDIR /app/dsp-frontend
 
 # Copy package files first
-COPY ./dsp-frontend/package.json ./dsp-frontend/bun.lock ./
+COPY dsp-frontend/package.json dsp-frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 
 # Copy the rest of the dsp-frontend files
-COPY ./dsp-frontend/ ./
+COPY dsp-frontend/ .
 ENV APP_BUILD_HASH=${BUILD_HASH}
 RUN bun run build
 
