@@ -72,7 +72,8 @@ pytest-docker~=3.1.1
 googleapis-common-protos==1.63.2
 
 ldap3==2.9.1
-langgraph==0.2.63
+langgraph>=0.2.70
 langchain-openai~=0.3
+typer>=0.15.1
 
 git+https://github.com/michaelpoluektov/lib_audio_dsp_demo.git@fork#egg=audio_dsp&subdirectory=python
