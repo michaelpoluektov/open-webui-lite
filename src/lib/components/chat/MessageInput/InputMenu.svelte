@@ -34,7 +34,7 @@
 			return a;
 		}, {});
 
-		selectedToolIds = Object.keys(tools).filter((id) => tools[id].enabled);
+		// selectedToolIds = Object.keys(tools).filter((id) => tools[id].enabled);
 	};
 	onMount(async () => {
 		await init();
