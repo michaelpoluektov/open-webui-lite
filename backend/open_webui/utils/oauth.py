@@ -200,7 +200,8 @@ class OAuthManager:
         except Exception as e:
             log.warning(f"OAuth callback error: {e}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
-        user_data: UserInfo = token["userinfo"]
+        if 'userinfo' in token:
+            user_data: UserInfo = token["userinfo"]
         if not user_data:
             user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
