@@ -206,6 +206,8 @@ class OAuthManager:
         if not user_data:
             user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
+            user_data: UserInfo = await client.userinfo()
+        if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
