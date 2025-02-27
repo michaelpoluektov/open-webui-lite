@@ -71,6 +71,7 @@ class OAuthManager:
                 server_metadata_url=provider_config["server_metadata_url"],
                 client_kwargs={
                     "scope": provider_config["scope"],
+                    "token_endpoint_auth_method": provider_config.get("token_endpoint_auth_method", "client_secret_basic"), # Add this line
                 },
                 redirect_uri=provider_config["redirect_uri"],
             )
@@ -200,10 +201,11 @@ class OAuthManager:
         except Exception as e:
             log.warning(f"OAuth callback error: {e}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
-        if 'userinfo' in token:
-            user_data: UserInfo = token["userinfo"]
+
+        user_data: UserInfo = token.get("userinfo")
         if not user_data:
-            user_data: UserInfo = await client.userinfo(token=token)
+             user_data = await client.userinfo()
+        
         if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
