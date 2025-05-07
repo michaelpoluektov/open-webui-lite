@@ -1,20 +1,19 @@
 <script lang="ts">
-	import { onMount, tick, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { getContext, tick } from 'svelte';
 
 	import dayjs from 'dayjs';
 
-	import { settings, chatId, WEBUI_NAME, models } from '$lib/stores';
+	import { chatId, models, WEBUI_NAME } from '$lib/stores';
 	import { convertMessagesToHistory, createMessagesList } from '$lib/utils';
 
-	import { getChatByShareId, cloneSharedChatById } from '$lib/apis/chats';
+	import { cloneSharedChatById, getChatByShareId } from '$lib/apis/chats';
 
 	import Messages from '$lib/components/chat/Messages.svelte';
-	import Navbar from '$lib/components/layout/Navbar.svelte';
 
-	import { getUserById } from '$lib/apis/users';
 	import { getModels } from '$lib/apis';
+	import { getUserById } from '$lib/apis/users';
 	import { toast } from 'svelte-sonner';
 
 	const i18n = getContext('i18n');
@@ -23,10 +22,8 @@
 
 	let autoScroll = true;
 	let processing = '';
-	let messagesContainerElement: HTMLDivElement;
 
 	// let chatId = $page.params.id;
-	let showModelSelector = false;
 	let selectedModels = [''];
 
 	let chat = null;
@@ -59,8 +56,8 @@
 	//////////////////////////
 
 	const loadSharedChat = async () => {
-		await models.set(await getModels(localStorage.token));
-		await chatId.set($page.params.id);
+		models.set(await getModels(localStorage.token));
+		chatId.set($page.params.id);
 		chat = await getChatByShareId(localStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
 			return null;
@@ -91,7 +88,10 @@
 				await tick();
 
 				if (messages.length > 0) {
-					history.messages[messages.at(-1).id].done = true;
+					let lastMsg = history.messages[messages.at(-1).id];
+					if (lastMsg) {
+						lastMsg.done = true;
+					}
 				}
 				await tick();
 
